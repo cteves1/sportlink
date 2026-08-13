@@ -56,3 +56,19 @@ export interface DashboardData {
   notes: Note[];
   recentActivity: Activity[];
 }
+
+export type PlayerHand = 'right' | 'left';
+export type PlayerLevel = 'beginner' | 'intermediate' | 'advanced';
+export type PlayerStatus = 'active' | 'injured' | 'inactive';
+export type PlayerCategory = 'benjamin' | 'alevin' | 'infantil' | 'cadete' | 'juvenil' | 'senior';
+
+export interface Player {
+  id: string;
+  name: string;
+  category: PlayerCategory;
+  age: number;
+  ranking: number;
+  hand: PlayerHand;
+  level: PlayerLevel;
+  status: PlayerStatus;
+}

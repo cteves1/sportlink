@@ -5,6 +5,7 @@ import {
   DashboardEvent,
   Note,
   Objective,
+  Player,
   Training,
 } from '../models/dashboard.model';
 
@@ -268,4 +269,19 @@ export function getEmptyDashboardData(role: UserRole): DashboardData {
     notes: [],
     recentActivity: [],
   };
+}
+
+export const MOCK_PLAYERS: Player[] = [
+  { id: 'p1', name: 'Juan Pérez', category: 'cadete', age: 14, ranking: 62, hand: 'right', level: 'advanced', status: 'active' },
+  { id: 'p2', name: 'María López', category: 'infantil', age: 12, ranking: 34, hand: 'left', level: 'intermediate', status: 'active' },
+  { id: 'p3', name: 'Carlos Ruiz', category: 'juvenil', age: 17, ranking: 18, hand: 'right', level: 'advanced', status: 'active' },
+  { id: 'p4', name: 'Ana Martínez', category: 'cadete', age: 15, ranking: 45, hand: 'right', level: 'intermediate', status: 'injured' },
+  { id: 'p5', name: 'Pedro Sánchez', category: 'alevin', age: 10, ranking: 88, hand: 'left', level: 'beginner', status: 'active' },
+  { id: 'p6', name: 'Lucía García', category: 'juvenil', age: 16, ranking: 27, hand: 'right', level: 'advanced', status: 'active' },
+  { id: 'p7', name: 'Sofía Torres', category: 'infantil', age: 13, ranking: 51, hand: 'right', level: 'intermediate', status: 'inactive' },
+  { id: 'p8', name: 'Diego Romero', category: 'senior', age: 24, ranking: 9, hand: 'right', level: 'advanced', status: 'active' },
+];
+
+export function getMockPlayers(): Player[] {
+  return MOCK_PLAYERS;
 }

@@ -1,35 +1,5 @@
 <div class="dashboard-layout">
-  <p-toolbar styleClass="topbar">
-    <ng-template #start>
-      <div class="topbar-brand">
-        <span class="pi pi-circle-fill brand-dot"></span>
-        <span class="brand-name">Table Tennis Trainer</span>
-      </div>
-    </ng-template>
-
-    <ng-template #end>
-      <div class="topbar-actions">
-        <span class="topbar-user">{{ user()?.name ?? 'Jugador' }}</span>
-        <p-avatar [label]="user()?.avatarInitials ?? 'JT'" shape="circle" styleClass="topbar-avatar"></p-avatar>
-        <p-button icon="pi pi-sign-out" label="Salir" size="small" severity="secondary" [text]="true" (onClick)="logout()"></p-button>
-      </div>
-    </ng-template>
-  </p-toolbar>
-
-  <div class="dashboard-body">
-    <aside class="sidebar" [class.sidebar--collapsed]="sidebarCollapsed()">
-      <button
-        type="button"
-        class="sidebar-collapse-toggle"
-        [attr.aria-label]="sidebarCollapsed() ? 'Expandir menú' : 'Colapsar menú'"
-        (click)="toggleSidebar()"
-      >
-        <span [class]="sidebarCollapsed() ? 'pi pi-angle-right' : 'pi pi-angle-left'"></span>
-      </button>
-      <p-menu [model]="menuItems()" styleClass="sidebar-menu"></p-menu>
-    </aside>
-
-    <main class="main-panel">
+  <main class="main-panel">
       <header class="welcome-header">
         <div class="welcome-titles">
           <h1 class="main-title">{{ greeting() }}</h1>
@@ -52,6 +22,55 @@
       } @else {
         <div class="dashboard-grid">
           <div class="dashboard-column dashboard-column--main">
+            @if (isCoach()) {
+              <section class="dashboard-card">
+                <div class="card-header">
+                  <h2 class="card-title">Jugadores</h2>
+                </div>
+
+                @if (isPlayersLoading()) {
+                  <div class="state-message state-loading">
+                    <span class="pi pi-spinner pi-spin state-icon"></span>
+                    <p>Cargando jugadores...</p>
+                  </div>
+                } @else if (players().length > 0) {
+                  <div class="table-responsive">
+                    <p-table [value]="players()" styleClass="players-table">
+                      <ng-template pTemplate="header">
+                        <tr>
+                          <th>Nombre</th>
+                          <th>Categoría</th>
+                          <th>Edad</th>
+                          <th>Ranking</th>
+                          <th>Mano</th>
+                          <th>Nivel</th>
+                          <th>Estado</th>
+                        </tr>
+                      </ng-template>
+                      <ng-template pTemplate="body" let-player>
+                        <tr>
+                          <td>{{ player.name }}</td>
+                          <td>{{ getPlayerCategoryLabel(player.category) }}</td>
+                          <td>{{ player.age }}</td>
+                          <td>#{{ player.ranking }}</td>
+                          <td>{{ getHandLabel(player.hand) }}</td>
+                          <td>{{ getPlayerLevelLabel(player.level) }}</td>
+                          <td>
+                            <p-tag [value]="getPlayerStatusLabel(player.status)" [severity]="getPlayerStatusSeverity(player.status)"></p-tag>
+                          </td>
+                        </tr>
+                      </ng-template>
+                    </p-table>
+                  </div>
+                } @else {
+                  <div class="empty-state">
+                    <span class="pi pi-users empty-icon"></span>
+                    <p>No hay jugadores registrados.</p>
+                  </div>
+                }
+              </section>
+            }
+
             <section class="dashboard-card">
               <div class="card-header">
                 <h2 class="card-title">Próximo entrenamiento</h2>
@@ -247,23 +266,4 @@
         </section>
       }
     </main>
-  </div>
-
-  <footer class="bottombar">
-    <span>&copy; 2026 Table Tennis Trainer</span>
-    <span class="bottombar-links">
-      <a href="#">Ayuda</a>
-      <a href="#">Privacidad</a>
-      <a href="#">Términos</a>
-    </span>
-  </footer>
-
-  <button
-    type="button"
-    class="theme-toggle-fab"
-    [attr.aria-label]="isDark() ? 'Activar modo claro' : 'Activar modo oscuro'"
-    (click)="toggleTheme()"
-  >
-    <span [class]="isDark() ? 'pi pi-sun' : 'pi pi-moon'"></span>
-  </button>
 </div>

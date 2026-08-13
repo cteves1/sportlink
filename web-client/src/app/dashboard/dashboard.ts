@@ -1,19 +1,14 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
-import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
-import { AvatarModule } from 'primeng/avatar';
 import { ChartModule } from 'primeng/chart';
-import { MenuModule } from 'primeng/menu';
-import { ToolbarModule } from 'primeng/toolbar';
 import { CardModule } from 'primeng/card';
 import { ProgressBarModule } from 'primeng/progressbar';
+import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TimelineModule } from 'primeng/timeline';
 import { AuthService } from '../auth/auth.service';
-import { ThemeService } from '../theme/theme.service';
 import { DashboardService } from './services/dashboard.service';
-import { DashboardData, Objective } from './models/dashboard.model';
+import { DashboardData, Objective, Player } from './models/dashboard.model';
 
 interface StatCard {
   label: string;
@@ -27,12 +22,10 @@ interface StatCard {
   selector: 'app-dashboard',
   imports: [
     ButtonModule,
-    AvatarModule,
     ChartModule,
-    MenuModule,
-    ToolbarModule,
     CardModule,
     ProgressBarModule,
+    TableModule,
     TagModule,
     TimelineModule,
   ],
@@ -41,22 +34,20 @@ interface StatCard {
 })
 export class Dashboard {
   private readonly authService = inject(AuthService);
-  private readonly router = inject(Router);
-  private readonly themeService = inject(ThemeService);
   private readonly dashboardService = inject(DashboardService);
 
   readonly user = this.authService.user;
-  readonly isDark = this.themeService.isDark;
-
-  readonly sidebarCollapsed = signal(false);
-  readonly activeOption = signal('overview');
+  readonly isCoach = this.authService.isCoach;
 
   readonly dashboardData = signal<DashboardData | null>(null);
   readonly isLoading = signal(true);
   readonly hasError = signal(false);
+  readonly players = signal<Player[]>([]);
+  readonly isPlayersLoading = signal(false);
 
   constructor() {
     effect(() => this.loadDashboardData());
+    effect(() => this.loadPlayers());
   }
 
   private loadDashboardData(): () => void {
@@ -84,6 +75,28 @@ export class Dashboard {
 
   retry(): void {
     this.loadDashboardData();
+  }
+
+  private loadPlayers(): () => void {
+    if (!this.isCoach()) {
+      this.players.set([]);
+      this.isPlayersLoading.set(false);
+      return () => {};
+    }
+
+    this.isPlayersLoading.set(true);
+
+    const sub = this.dashboardService.getPlayers().subscribe({
+      next: (players) => {
+        this.players.set(players);
+        this.isPlayersLoading.set(false);
+      },
+      error: () => {
+        this.isPlayersLoading.set(false);
+      },
+    });
+
+    return () => sub.unsubscribe();
   }
 
   readonly greeting = computed(() => {
@@ -122,43 +135,7 @@ export class Dashboard {
     { label: 'Ranking actual', value: '#62', icon: 'pi pi-chart-line', trend: '-8 posiciones', trendPositive: true },
   ];
 
-  readonly menuItems = computed<MenuItem[]>(() => [
-    {
-      id: 'overview',
-      label: 'Resumen',
-      icon: 'pi pi-home',
-      styleClass: this.activeOption() === 'overview' ? 'menu-item-active' : '',
-      command: () => this.selectOption('overview'),
-    },
-    {
-      id: 'training',
-      label: 'Entrenamientos',
-      icon: 'pi pi-chart-line',
-      styleClass: this.activeOption() === 'training' ? 'menu-item-active' : '',
-      command: () => this.router.navigate(['/entrenamientos']),
-    },
-    {
-      id: 'calendar',
-      label: 'Calendario',
-      icon: 'pi pi-calendar',
-      styleClass: this.activeOption() === 'calendar' ? 'menu-item-active' : '',
-      command: () => this.router.navigate(['/calendar']),
-    },
-    {
-      id: 'players',
-      label: this.user()?.role === 'coach' ? 'Jugadores' : 'Perfil',
-      icon: 'pi pi-users',
-      styleClass: this.activeOption() === 'players' ? 'menu-item-active' : '',
-      command: () => this.selectOption('players'),
-    },
-    {
-      id: 'profile',
-      label: 'Perfil',
-      icon: 'pi pi-user',
-      styleClass: this.activeOption() === 'profile' ? 'menu-item-active' : '',
-      command: () => this.selectOption('profile'),
-    },
-  ]);
+
 
   readonly matchesChartData = {
     labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
@@ -307,20 +284,47 @@ export class Dashboard {
     return content.slice(0, maxLength).trim() + '…';
   }
 
-  selectOption(id: string): void {
-    this.activeOption.set(id);
+  getPlayerCategoryLabel(category: Player['category']): string {
+    const labels: Record<Player['category'], string> = {
+      benjamin: 'Benjamín',
+      alevin: 'Alevín',
+      infantil: 'Infantil',
+      cadete: 'Cadete',
+      juvenil: 'Juvenil',
+      senior: 'Senior',
+    };
+    return labels[category];
   }
 
-  toggleSidebar(): void {
-    this.sidebarCollapsed.set(!this.sidebarCollapsed());
+  getHandLabel(hand: Player['hand']): string {
+    return hand === 'right' ? 'Diestro' : 'Zurdo';
   }
 
-  toggleTheme(): void {
-    this.themeService.toggle();
+  getPlayerLevelLabel(level: Player['level']): string {
+    const labels: Record<Player['level'], string> = {
+      beginner: 'Principiante',
+      intermediate: 'Intermedio',
+      advanced: 'Avanzado',
+    };
+    return labels[level];
   }
 
-  logout(): void {
-    this.authService.logout();
-    this.router.navigate(['/']);
+  getPlayerStatusSeverity(status: Player['status']): 'success' | 'info' | 'warn' | 'danger' | undefined {
+    const severities: Record<Player['status'], 'success' | 'info' | 'warn' | 'danger'> = {
+      active: 'success',
+      injured: 'warn',
+      inactive: 'info',
+    };
+    return severities[status];
   }
+
+  getPlayerStatusLabel(status: Player['status']): string {
+    const labels: Record<Player['status'], string> = {
+      active: 'Activo',
+      injured: 'Lesionado',
+      inactive: 'Inactivo',
+    };
+    return labels[status];
+  }
+
 }
