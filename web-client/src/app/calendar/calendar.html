@@ -1,0 +1,154 @@
+<app-shell>
+  <header class="calendar-header">
+    <div>
+      <h1 class="main-title">Calendario</h1>
+      <p class="main-subtitle">Próximos entrenamientos, torneos y eventos.</p>
+    </div>
+    @if (isCoach()) {
+      <p-button label="Nuevo evento" icon="pi pi-plus" size="small" (onClick)="startCreate()"></p-button>
+    }
+  </header>
+
+  @if (hasEvents()) {
+    <section class="calendar-card">
+      <full-calendar [options]="calendarOptions()"></full-calendar>
+    </section>
+  } @else {
+    <p-card styleClass="empty-card">
+      <div class="empty-state">
+        <span class="pi pi-calendar empty-icon"></span>
+        <h3 class="empty-title">No hay eventos programados</h3>
+        <p class="empty-text">Aún no tienes eventos en tu calendario.</p>
+        @if (isCoach()) {
+          <p-button label="Crear evento" icon="pi pi-plus" size="small" (onClick)="startCreate()"></p-button>
+        }
+      </div>
+    </p-card>
+  }
+</app-shell>
+
+<!-- Detail dialog -->
+<p-dialog
+  [(visible)]="detailVisible"
+  [header]="selectedEvent()?.title ?? 'Detalle'"
+  [modal]="true"
+  [style]="{ width: '28rem' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  @if (selectedEvent(); as event) {
+    <div class="detail-body">
+      <div class="detail-row">
+        <span class="detail-label">Tipo</span>
+        <p-tag [value]="typeLabel(event.type)" [style]="{ 'background': eventTypeColors[event.type], color: '#fff' }"></p-tag>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Fecha</span>
+        <span>{{ formatDateTime(event.start) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Hora</span>
+        <span>{{ formatTime(event.start) }} - {{ formatTime(event.end) }}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Duración</span>
+        <span>{{ duration(event.start, event.end) }} min</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Estado</span>
+        <span>{{ statusLabel(event.status) }}</span>
+      </div>
+      <div class="detail-row detail-column">
+        <span class="detail-label">Descripción</span>
+        <p class="detail-description">{{ event.description }}</p>
+      </div>
+      <div class="detail-row detail-column">
+        <span class="detail-label">Participantes</span>
+        <div class="detail-chips">
+          @for (participant of event.participants; track participant) {
+            <p-chip [label]="participant"></p-chip>
+          }
+        </div>
+      </div>
+      @if (event.objective) {
+        <div class="detail-row detail-column">
+          <span class="detail-label">Objetivo</span>
+          <p class="detail-description">{{ event.objective }}</p>
+        </div>
+      }
+    </div>
+
+    <div class="detail-actions">
+      @if (canEdit(event)) {
+        <p-button label="Editar" icon="pi pi-pencil" size="small" (onClick)="startEdit()"></p-button>
+      }
+      @if (canDelete(event)) {
+        <p-button label="Eliminar" icon="pi pi-trash" size="small" severity="danger" [outlined]="true" (onClick)="deleteEvent()"></p-button>
+      }
+    </div>
+  }
+</p-dialog>
+
+<!-- Create/edit dialog -->
+<p-dialog
+  [(visible)]="formVisible"
+  [header]="isEditing() ? 'Editar evento' : 'Nuevo evento'"
+  [modal]="true"
+  [style]="{ width: '28rem' }"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <div class="form-body">
+    <div class="form-field">
+      <label for="type">Tipo</label>
+      <p-select id="type" [options]="typeOptions" optionLabel="label" optionValue="value" [(ngModel)]="form().type"></p-select>
+    </div>
+
+    <div class="form-field">
+      <label for="title">Título</label>
+      <input id="title" pInputText [(ngModel)]="form().title" class="w-full" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-field">
+        <label for="date">Fecha</label>
+        <p-datepicker id="date" [(ngModel)]="form().date"></p-datepicker>
+      </div>
+      <div class="form-field">
+        <label for="time">Hora</label>
+        <input id="time" type="time" pInputText [(ngModel)]="form().time" class="w-full" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-field">
+        <label for="duration">Duración (min)</label>
+        <p-inputnumber id="duration" [(ngModel)]="form().duration" [min]="15" [step]="15"></p-inputnumber>
+      </div>
+      <div class="form-field">
+        <label for="status">Estado</label>
+        <p-select id="status" [options]="statusOptions" optionLabel="label" optionValue="value" [(ngModel)]="form().status"></p-select>
+      </div>
+    </div>
+
+    <div class="form-field">
+      <label for="player">Jugador</label>
+      <p-select id="player" [options]="players()" optionLabel="name" optionValue="id" [(ngModel)]="form().playerId" [placeholder]="'Selecciona jugador'"></p-select>
+    </div>
+
+    <div class="form-field">
+      <label for="objective">Objetivo (opcional)</label>
+      <input id="objective" pInputText [(ngModel)]="form().objective" class="w-full" />
+    </div>
+
+    <div class="form-field">
+      <label for="description">Descripción</label>
+      <p-textarea id="description" [(ngModel)]="form().description" rows="3"></p-textarea>
+    </div>
+  </div>
+
+  <div class="detail-actions">
+    <p-button label="Cancelar" size="small" [outlined]="true" (onClick)="closeForm()"></p-button>
+    <p-button label="Guardar" icon="pi pi-check" size="small" (onClick)="saveEvent()"></p-button>
+  </div>
+</p-dialog>

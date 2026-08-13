@@ -1,0 +1,269 @@
+<div class="dashboard-layout">
+  <p-toolbar styleClass="topbar">
+    <ng-template #start>
+      <div class="topbar-brand">
+        <span class="pi pi-circle-fill brand-dot"></span>
+        <span class="brand-name">Table Tennis Trainer</span>
+      </div>
+    </ng-template>
+
+    <ng-template #end>
+      <div class="topbar-actions">
+        <span class="topbar-user">{{ user()?.name ?? 'Jugador' }}</span>
+        <p-avatar [label]="user()?.avatarInitials ?? 'JT'" shape="circle" styleClass="topbar-avatar"></p-avatar>
+        <p-button icon="pi pi-sign-out" label="Salir" size="small" severity="secondary" [text]="true" (onClick)="logout()"></p-button>
+      </div>
+    </ng-template>
+  </p-toolbar>
+
+  <div class="dashboard-body">
+    <aside class="sidebar" [class.sidebar--collapsed]="sidebarCollapsed()">
+      <button
+        type="button"
+        class="sidebar-collapse-toggle"
+        [attr.aria-label]="sidebarCollapsed() ? 'Expandir menú' : 'Colapsar menú'"
+        (click)="toggleSidebar()"
+      >
+        <span [class]="sidebarCollapsed() ? 'pi pi-angle-right' : 'pi pi-angle-left'"></span>
+      </button>
+      <p-menu [model]="menuItems()" styleClass="sidebar-menu"></p-menu>
+    </aside>
+
+    <main class="main-panel">
+      <header class="welcome-header">
+        <div class="welcome-titles">
+          <h1 class="main-title">{{ greeting() }}</h1>
+          <p class="main-subtitle">{{ roleLabel() }} · {{ currentDate() }}</p>
+        </div>
+        <p class="welcome-text">Aquí tienes el resumen de tu actividad.</p>
+      </header>
+
+      @if (isLoading()) {
+        <div class="state-message state-loading">
+          <span class="pi pi-spinner pi-spin state-icon"></span>
+          <p>Cargando resumen...</p>
+        </div>
+      } @else if (hasError()) {
+        <div class="state-message state-error">
+          <span class="pi pi-exclamation-circle state-icon"></span>
+          <p>No se pudieron cargar los datos del dashboard.</p>
+          <p-button label="Reintentar" icon="pi pi-refresh" size="small" (onClick)="retry()"></p-button>
+        </div>
+      } @else {
+        <div class="dashboard-grid">
+          <div class="dashboard-column dashboard-column--main">
+            <section class="dashboard-card">
+              <div class="card-header">
+                <h2 class="card-title">Próximo entrenamiento</h2>
+              </div>
+
+              @if (nextTraining(); as training) {
+                <div class="next-training">
+                  <div class="next-training-main">
+                    <span class="next-training-date">{{ formatLongDate(training.date) }}</span>
+                    <span class="next-training-title">{{ training.title }}</span>
+                    <div class="next-training-meta">
+                      <span class="pi pi-clock"></span>
+                      <span>{{ formatTime(training.date) }}</span>
+                      <span class="meta-separator">·</span>
+                      <span>{{ training.durationMinutes }} min</span>
+                      <span class="meta-separator">·</span>
+                      <p-tag [value]="getStatusLabel(training.status)" [severity]="getStatusSeverity(training.status)"></p-tag>
+                    </div>
+                    <p class="next-training-objective">{{ training.objective }}</p>
+                  </div>
+                  <p-button label="Ver entrenamiento" size="small" icon="pi pi-arrow-right" iconPos="right"></p-button>
+                </div>
+              } @else {
+                <div class="empty-state">
+                  <span class="pi pi-calendar-times empty-icon"></span>
+                  <p>No tienes entrenamientos programados.</p>
+                </div>
+              }
+            </section>
+
+            <section class="dashboard-card">
+              <div class="card-header card-header--spaced">
+                <h2 class="card-title">Objetivos activos</h2>
+                @if (hasMoreObjectives()) {
+                  <p-button label="Ver todos" size="small" [text]="true" icon="pi pi-list"></p-button>
+                }
+              </div>
+
+              @if (visibleObjectives().length > 0) {
+                <ul class="objectives-list">
+                  @for (objective of visibleObjectives(); track objective.id) {
+                    <li class="objective-item">
+                      <div class="objective-header">
+                        <span class="objective-name">{{ objective.name }}</span>
+                        <p-tag [value]="getCategoryLabel(objective.category)" severity="info" styleClass="category-tag"></p-tag>
+                      </div>
+                      <div class="objective-meta">
+                        <span class="objective-deadline">Límite: {{ formatShortDate(objective.deadline) }}</span>
+                        <p-tag [value]="getStatusLabel(objective.status)" [severity]="getStatusSeverity(objective.status)" styleClass="status-tag"></p-tag>
+                      </div>
+                      <p-progressbar [value]="objective.progress" [showValue]="true" styleClass="objective-progress"></p-progressbar>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <div class="empty-state">
+                  <span class="pi pi-flag empty-icon"></span>
+                  <p>No tienes objetivos activos.</p>
+                </div>
+              }
+            </section>
+
+            <section class="dashboard-card">
+              <div class="card-header">
+                <h2 class="card-title">Próximos eventos</h2>
+              </div>
+
+              @if (upcomingEvents().length > 0) {
+                <ul class="events-list">
+                  @for (event of upcomingEvents(); track event.id) {
+                    <li class="event-item">
+                      <div class="event-icon">
+                        <span [class]="getEventIcon(event.type)"></span>
+                      </div>
+                      <div class="event-content">
+                        <div class="event-title-row">
+                          <span class="event-title">{{ event.title }}</span>
+                          <p-tag [value]="getEventTypeLabel(event.type)" severity="secondary" styleClass="event-type-tag"></p-tag>
+                        </div>
+                        <div class="event-meta">
+                          <span>{{ formatShortDate(event.date) }}</span>
+                          <span class="meta-separator">·</span>
+                          <span>{{ formatTime(event.date) }}</span>
+                        </div>
+                        <p class="event-description">{{ event.description }}</p>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <div class="empty-state">
+                  <span class="pi pi-calendar empty-icon"></span>
+                  <p>No hay eventos próximos.</p>
+                </div>
+              }
+            </section>
+          </div>
+
+          <div class="dashboard-column dashboard-column--side">
+            <section class="dashboard-card">
+              <div class="card-header card-header--spaced">
+                <h2 class="card-title">Últimas notas</h2>
+                <p-button label="Bitácora" size="small" [text]="true" icon="pi pi-book"></p-button>
+              </div>
+
+              @if (notes().length > 0) {
+                <ul class="notes-list">
+                  @for (note of notes(); track note.id) {
+                    <li class="note-item">
+                      <div class="note-header">
+                        <span class="note-author">{{ note.author }}</span>
+                        <span class="note-date">{{ formatShortDate(note.date) }}</span>
+                      </div>
+                      <p class="note-content">{{ summarize(note.content) }}</p>
+                      <p-tag [value]="getNoteTypeLabel(note.type)" severity="info" styleClass="note-type-tag"></p-tag>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <div class="empty-state">
+                  <span class="pi pi-pen-to-square empty-icon"></span>
+                  <p>No hay notas recientes.</p>
+                </div>
+              }
+            </section>
+
+            <section class="dashboard-card">
+              <div class="card-header">
+                <h2 class="card-title">Actividad reciente</h2>
+              </div>
+
+              @if (recentActivity().length > 0) {
+                <div class="activity-wrapper">
+                  <p-timeline [value]="recentActivity()" layout="vertical" align="left">
+                    <ng-template #content let-event>
+                      <div class="activity-item">
+                        <p class="activity-text">{{ event.text }}</p>
+                        <small class="activity-time">{{ formatShortDate(event.timestamp) }}</small>
+                      </div>
+                    </ng-template>
+                  </p-timeline>
+                </div>
+              } @else {
+                <div class="empty-state">
+                  <span class="pi pi-history empty-icon"></span>
+                  <p>No hay actividad reciente.</p>
+                </div>
+              }
+            </section>
+          </div>
+        </div>
+
+        <section class="dashboard-card progress-section">
+          <div class="card-header">
+            <h2 class="card-title">Progreso</h2>
+          </div>
+
+          <div class="stats-grid">
+            @for (stat of statCards; track stat.label) {
+              <p-card styleClass="stat-card">
+                <div class="stat-card-body">
+                  <div class="stat-icon">
+                    <span [class]="stat.icon"></span>
+                  </div>
+                  <div class="stat-info">
+                    <span class="stat-label">{{ stat.label }}</span>
+                    <span class="stat-value">{{ stat.value }}</span>
+                    <span class="stat-trend" [class.stat-trend--positive]="stat.trendPositive">
+                      {{ stat.trend }}
+                    </span>
+                  </div>
+                </div>
+              </p-card>
+            }
+          </div>
+
+          <div class="charts-grid">
+            <section class="chart-card">
+              <h2 class="chart-title">Sets ganados (última semana)</h2>
+              <p-chart type="line" [data]="matchesChartData" [options]="matchesChartOptions" height="260px"></p-chart>
+            </section>
+
+            <section class="chart-card">
+              <h2 class="chart-title">Precisión por golpe</h2>
+              <p-chart type="bar" [data]="strokesChartData" [options]="strokesChartOptions" height="260px"></p-chart>
+            </section>
+
+            <section class="chart-card chart-card--wide">
+              <h2 class="chart-title">Evolución de ranking</h2>
+              <p-chart type="line" [data]="progressChartData" [options]="progressChartOptions" height="260px"></p-chart>
+            </section>
+          </div>
+        </section>
+      }
+    </main>
+  </div>
+
+  <footer class="bottombar">
+    <span>&copy; 2026 Table Tennis Trainer</span>
+    <span class="bottombar-links">
+      <a href="#">Ayuda</a>
+      <a href="#">Privacidad</a>
+      <a href="#">Términos</a>
+    </span>
+  </footer>
+
+  <button
+    type="button"
+    class="theme-toggle-fab"
+    [attr.aria-label]="isDark() ? 'Activar modo claro' : 'Activar modo oscuro'"
+    (click)="toggleTheme()"
+  >
+    <span [class]="isDark() ? 'pi pi-sun' : 'pi pi-moon'"></span>
+  </button>
+</div>

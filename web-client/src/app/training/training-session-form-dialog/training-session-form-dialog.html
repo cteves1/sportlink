@@ -1,0 +1,117 @@
+<p-dialog [(visible)]="visible" [modal]="true" [style]="{ width: '44rem', maxWidth: '95vw' }" [draggable]="false" [resizable]="false" [header]="isEdit() ? 'Editar sesión' : 'Nueva sesión'">
+  <p-stepper [(value)]="step" [linear]="false" styleClass="training-stepper">
+    <p-step-list>
+      <p-step [value]="1">Datos de la sesión</p-step>
+      <p-step [value]="2">Bloques / ejercicios</p-step>
+    </p-step-list>
+
+    <p-step-panels>
+      <p-step-panel [value]="1">
+        <div class="step-panel-content">
+          <div class="form-grid">
+            <div class="form-field form-field--full">
+              <label for="playerId">Jugador</label>
+              <p-select id="playerId" [options]="players()" optionLabel="name" optionValue="id" [ngModel]="draft().playerId" (ngModelChange)="updateDraft('playerId', $event)" placeholder="Selecciona un jugador"></p-select>
+            </div>
+
+            <div class="form-field">
+              <label for="date">Fecha</label>
+              <input id="date" type="date" pInputText [ngModel]="draft().date" (ngModelChange)="updateDraft('date', $event)" />
+            </div>
+
+            <div class="form-field">
+              <label for="time">Hora</label>
+              <input id="time" type="time" pInputText [ngModel]="draft().time" (ngModelChange)="updateDraft('time', $event)" />
+            </div>
+
+            <div class="form-field">
+              <label for="duration">Duración (min)</label>
+              <p-inputnumber id="duration" [ngModel]="draft().duration" (ngModelChange)="updateDraft('duration', $event)" [min]="5" [useGrouping]="false"></p-inputnumber>
+            </div>
+
+            <div class="form-field">
+              <label for="status">Estado</label>
+              <p-select id="status" [options]="statusOptions" optionLabel="label" optionValue="value" [ngModel]="draft().status" (ngModelChange)="updateDraft('status', $event)"></p-select>
+            </div>
+
+            <div class="form-field form-field--full">
+              <label for="title">Título</label>
+              <input id="title" pInputText [ngModel]="draft().title" (ngModelChange)="updateDraft('title', $event)" placeholder="Título de la sesión" />
+            </div>
+
+            <div class="form-field form-field--full">
+              <label for="objective">Objetivo principal</label>
+              <textarea id="objective" pTextarea [ngModel]="draft().objective" (ngModelChange)="updateDraft('objective', $event)" rows="2" placeholder="Objetivo de la sesión"></textarea>
+            </div>
+
+            <div class="form-field form-field--full">
+              <label for="description">Descripción</label>
+              <textarea id="description" pTextarea [ngModel]="draft().description" (ngModelChange)="updateDraft('description', $event)" rows="3" placeholder="Descripción general de la sesión"></textarea>
+            </div>
+
+            <div class="form-field form-field--full">
+              <label for="coachNotes">Notas del entrenador</label>
+              <textarea id="coachNotes" pTextarea [ngModel]="draft().coachNotes" (ngModelChange)="updateDraft('coachNotes', $event)" rows="2" placeholder="Notas privadas para el entrenador"></textarea>
+            </div>
+          </div>
+
+          <div class="step-actions">
+            <p-button label="Siguiente" icon="pi pi-arrow-right" (onClick)="step.set(2)"></p-button>
+          </div>
+        </div>
+      </p-step-panel>
+
+      <p-step-panel [value]="2">
+        <div class="step-panel-content">
+          <div class="blocks-header">
+            <h3 class="blocks-title">Bloques de entrenamiento</h3>
+            <p-button label="Añadir bloque" icon="pi pi-plus" size="small" (onClick)="addBlock()"></p-button>
+          </div>
+
+          @if (draft().blocks.length === 0) {
+            <p class="blocks-empty">Aún no hay bloques. Añade uno para definir los ejercicios de la sesión.</p>
+          }
+
+          <div class="blocks-list">
+            @for (block of draft().blocks; track block.id) {
+              <div class="block-card">
+                <div class="block-card__row">
+                  <div class="form-field" style="flex: 1 1 40%;">
+                    <label for="block-name-{{ block.id }}">Nombre</label>
+                    <input id="block-name-{{ block.id }}" pInputText [ngModel]="block.name" (ngModelChange)="updateBlock(block.id, 'name', $event)" placeholder="Ej. Saque corto" />
+                  </div>
+
+                  <div class="form-field" style="flex: 1 1 30%;">
+                    <label for="block-type-{{ block.id }}">Tipo</label>
+                    <p-select id="block-type-{{ block.id }}" [options]="blockTypes" [ngModel]="block.type" (ngModelChange)="updateBlock(block.id, 'type', $event)" placeholder="Tipo"></p-select>
+                  </div>
+
+                  <div class="form-field" style="flex: 1 1 20%;">
+                    <label for="block-duration-{{ block.id }}">Min</label>
+                    <p-inputnumber id="block-duration-{{ block.id }}" [ngModel]="block.duration" (ngModelChange)="updateBlock(block.id, 'duration', $event)" [min]="1" [useGrouping]="false"></p-inputnumber>
+                  </div>
+                </div>
+
+                <div class="form-field form-field--full">
+                  <label for="block-desc-{{ block.id }}">Descripción</label>
+                  <textarea id="block-desc-{{ block.id }}" pTextarea [ngModel]="block.description" (ngModelChange)="updateBlock(block.id, 'description', $event)" rows="2" placeholder="Detalles del ejercicio"></textarea>
+                </div>
+
+                <div class="block-card__actions">
+                  <p-button icon="pi pi-arrow-up" [text]="true" [rounded]="true" [disabled]="$first" (onClick)="moveBlock(block.id, -1)"></p-button>
+                  <p-button icon="pi pi-arrow-down" [text]="true" [rounded]="true" [disabled]="$last" (onClick)="moveBlock(block.id, 1)"></p-button>
+                  <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true" (onClick)="removeBlock(block.id)"></p-button>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="step-actions step-actions--between">
+            <p-button label="Anterior" icon="pi pi-arrow-left" [outlined]="true" (onClick)="step.set(1)"></p-button>
+            <p-button [label]="isEdit() ? 'Guardar cambios' : 'Crear sesión'" icon="pi pi-check" (onClick)="save()"></p-button>
+          </div>
+        </div>
+      </p-step-panel>
+    </p-step-panels>
+  </p-stepper>
+</p-dialog>

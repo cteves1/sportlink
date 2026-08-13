@@ -1,0 +1,772 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #f5f7f6;
+}
+
+/* Top navbar */
+:host ::ng-deep .topbar {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #0f5132 0%, #14824b 60%, #34c77b 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  border: none;
+  border-radius: 0;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.brand-dot {
+  font-size: 0.6rem;
+  color: #ffffff;
+  opacity: 0.85;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.topbar-user {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+:host ::ng-deep .topbar-avatar {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+:host ::ng-deep .topbar-actions .p-button {
+  color: #ffffff;
+}
+
+/* Body: sidebar + main */
+.dashboard-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  position: relative;
+  width: 220px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  padding: 1.5rem 0.75rem;
+  transition: width 0.2s ease, padding 0.2s ease;
+}
+
+.sidebar--collapsed {
+  width: 72px;
+  padding: 1.5rem 0.5rem;
+}
+
+.sidebar-collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 0 0.75rem auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #6b7280;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.sidebar--collapsed .sidebar-collapse-toggle {
+  margin-inline: auto;
+}
+
+.sidebar-collapse-toggle:hover {
+  color: #14824b;
+  border-color: #14824b;
+}
+
+:host ::ng-deep .sidebar--collapsed .sidebar-menu .p-menu-item-label {
+  display: none;
+}
+
+:host ::ng-deep .sidebar-menu {
+  width: 100%;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+:host ::ng-deep .sidebar-menu .p-menu-item-link {
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #374151;
+  gap: 0.75rem;
+}
+
+:host ::ng-deep .sidebar-menu .p-menu-item-icon {
+  color: #6b7280;
+}
+
+:host ::ng-deep .sidebar-menu .p-menu-item-link:hover {
+  background: #f0fbf4;
+}
+
+:host ::ng-deep .sidebar-menu .menu-item-active .p-menu-item-link {
+  background: rgba(20, 130, 75, 0.12);
+  color: #0f5132;
+}
+
+:host ::ng-deep .sidebar-menu .menu-item-active .p-menu-item-icon {
+  color: #14824b;
+}
+
+/* Main panel */
+.main-panel {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.main-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.main-subtitle {
+  margin: 0 0 1.75rem;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+:host ::ng-deep .stat-card {
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+:host ::ng-deep .stat-card .p-card-body {
+  padding: 1.1rem 1.25rem;
+}
+
+.stat-card-body {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: rgba(20, 130, 75, 0.12);
+  color: #14824b;
+  font-size: 1.15rem;
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.stat-label {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.stat-trend {
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+
+.stat-trend--positive {
+  color: #14824b;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.chart-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.chart-card--wide {
+  grid-column: 1 / -1;
+}
+
+.chart-title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Bottom navbar */
+.bottombar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.bottombar-links {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.bottombar-links a {
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.bottombar-links a:hover {
+  color: #14824b;
+  text-decoration: underline;
+}
+
+/* Welcome header */
+.welcome-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.welcome-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.welcome-text {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+/* Dashboard grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dashboard-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+  margin-bottom: 1rem;
+}
+
+.card-header--spaced {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+/* Next training */
+.next-training {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.next-training-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.next-training-date {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.next-training-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.next-training-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.meta-separator {
+  color: #d1d5db;
+}
+
+.next-training-objective {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+/* Objectives */
+.objectives-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.objective-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.objective-header,
+.objective-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.objective-name {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.objective-deadline {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+:host ::ng-deep .objective-progress .p-progressbar-value {
+  background: #14824b;
+}
+
+:host ::ng-deep .objective-progress .p-progressbar-label {
+  font-size: 0.75rem;
+  color: #374151;
+}
+
+:host ::ng-deep .category-tag .p-tag-value,
+:host ::ng-deep .status-tag .p-tag-value,
+:host ::ng-deep .note-type-tag .p-tag-value,
+:host ::ng-deep .event-type-tag .p-tag-value {
+  font-size: 0.72rem;
+}
+
+/* Events */
+.events-list,
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.event-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.event-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: rgba(20, 130, 75, 0.1);
+  color: #14824b;
+  font-size: 1rem;
+}
+
+.event-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.event-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.event-title {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.event-meta {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.event-description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+/* Notes */
+.note-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.note-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.note-author {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1a1a1a;
+}
+
+.note-date {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.note-content {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+/* Activity */
+.activity-wrapper {
+  padding-left: 0.5rem;
+}
+
+:host ::ng-deep .activity-wrapper .p-timeline {
+  align-items: flex-start;
+}
+
+:host ::ng-deep .activity-wrapper .p-timeline-event {
+  min-height: auto;
+}
+
+:host ::ng-deep .activity-wrapper .p-timeline-event-connector {
+  background: #e5e7eb;
+}
+
+.activity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.activity-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.activity-time {
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+
+/* Empty states */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.empty-icon {
+  font-size: 2rem;
+  color: #d1d5db;
+}
+
+.state-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.state-loading .state-icon {
+  font-size: 2rem;
+  color: #14824b;
+}
+
+.state-error .state-icon {
+  font-size: 2rem;
+  color: #ef4444;
+}
+
+/* Progress section */
+.progress-section {
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 900px) {
+  .dashboard-body {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  :host ::ng-deep .sidebar-menu .p-menu-list {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .welcome-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Theme toggle FAB */
+.theme-toggle-fab {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0f5132 0%, #14824b 60%, #34c77b 100%);
+  color: #ffffff;
+  font-size: 1.15rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  z-index: 50;
+}
+
+.theme-toggle-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
+}
+
+/* Dark mode overrides */
+:host-context(.app-dark) .dashboard-layout {
+  background: #12181a;
+}
+
+:host-context(.app-dark) .sidebar {
+  background: #1c2427;
+  border-right-color: #2a3336;
+}
+
+:host-context(.app-dark) .sidebar-collapse-toggle {
+  background: #1c2427;
+  border-color: #2a3336;
+  color: #9ca3af;
+}
+
+:host-context(.app-dark) ::ng-deep .sidebar-menu .p-menu-item-link {
+  color: #d1d5db;
+}
+
+:host-context(.app-dark) ::ng-deep .sidebar-menu .p-menu-item-icon {
+  color: #9ca3af;
+}
+
+:host-context(.app-dark) ::ng-deep .sidebar-menu .p-menu-item-link:hover {
+  background: rgba(52, 199, 123, 0.12);
+}
+
+:host-context(.app-dark) .main-title {
+  color: #f3f4f6;
+}
+
+:host-context(.app-dark) .main-subtitle {
+  color: #9ca3af;
+}
+
+:host-context(.app-dark) ::ng-deep .stat-card,
+:host-context(.app-dark) .chart-card {
+  background: #1c2427;
+  box-shadow: none;
+  border: 1px solid #2a3336;
+}
+
+:host-context(.app-dark) .stat-value {
+  color: #f3f4f6;
+}
+
+:host-context(.app-dark) .stat-label {
+  color: #9ca3af;
+}
+
+:host-context(.app-dark) .chart-title {
+  color: #d1d5db;
+}
+
+:host-context(.app-dark) .bottombar {
+  background: #1c2427;
+  border-top-color: #2a3336;
+  color: #9ca3af;
+}
+
+:host-context(.app-dark) .bottombar-links a {
+  color: #9ca3af;
+}
+
+:host-context(.app-dark) .dashboard-card {
+  background: #1c2427;
+  border: 1px solid #2a3336;
+  box-shadow: none;
+}
+
+:host-context(.app-dark) .welcome-text,
+:host-context(.app-dark) .card-title,
+:host-context(.app-dark) .next-training-title,
+:host-context(.app-dark) .objective-name,
+:host-context(.app-dark) .event-title,
+:host-context(.app-dark) .note-author,
+:host-context(.app-dark) .next-training-objective {
+  color: #f3f4f6;
+}
+
+:host-context(.app-dark) .next-training-date,
+:host-context(.app-dark) .next-training-meta,
+:host-context(.app-dark) .objective-deadline,
+:host-context(.app-dark) .event-meta,
+:host-context(.app-dark) .event-description,
+:host-context(.app-dark) .note-content,
+:host-context(.app-dark) .activity-text,
+:host-context(.app-dark) .empty-state,
+:host-context(.app-dark) .state-message,
+:host-context(.app-dark) .meta-separator {
+  color: #9ca3af;
+}
+
+:host-context(.app-dark) .note-item {
+  border-bottom-color: #2a3336;
+}
+
+:host-context(.app-dark) .event-icon {
+  background: rgba(52, 199, 123, 0.12);
+  color: #34c77b;
+}
+
+:host-context(.app-dark) ::ng-deep .activity-wrapper .p-timeline-event-connector {
+  background: #2a3336;
+}
