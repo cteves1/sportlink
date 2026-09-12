@@ -6,6 +6,7 @@ import {
   LucideChevronUp,
   LucideClipboardList,
   LucideMessageCircle,
+  LucidePencil,
   LucideSearch,
   LucideUserPlus,
   LucideX,
@@ -29,6 +30,7 @@ type StatusFilter = 'todos' | 'activo' | 'inactivo';
     LucideChevronUp,
     LucideClipboardList,
     LucideMessageCircle,
+    LucidePencil,
   ],
   templateUrl: './jugadores.html',
 })
@@ -47,6 +49,8 @@ export class Jugadores {
   protected readonly expandedId = signal<number | null>(null);
   protected readonly isFormOpen = signal(false);
   protected readonly lastCreated = signal<Athlete | null>(null);
+  protected readonly editingAthleteId = signal<number | null>(null);
+  protected readonly isEditing = computed(() => this.editingAthleteId() !== null);
 
   protected readonly filteredAthletes = computed(() => {
     const category = this.selectedCategory();
@@ -97,13 +101,32 @@ export class Jugadores {
   }
 
   protected openForm(): void {
+    this.editingAthleteId.set(null);
     this.lastCreated.set(null);
+    this.isFormOpen.set(true);
+  }
+
+  /** Abre el mismo modal precargado con los datos del jugador, para editarlo sin regenerar usuario/clave. */
+  protected openEditForm(athlete: Athlete): void {
+    this.editingAthleteId.set(athlete.id);
+    this.lastCreated.set(null);
+    this.form.reset({
+      firstName: athlete.firstName,
+      lastName: athlete.lastName,
+      birthDate: this.toDateInputValue(athlete.birthDate),
+      category: athlete.category,
+      phone: athlete.phone,
+      playerType: athlete.playerType,
+      dominantHand: athlete.dominantHand,
+      paddleGrip: athlete.paddleGrip,
+    });
     this.isFormOpen.set(true);
   }
 
   protected closeForm(): void {
     this.isFormOpen.set(false);
     this.lastCreated.set(null);
+    this.editingAthleteId.set(null);
     this.form.reset({
       firstName: '',
       lastName: '',
@@ -116,6 +139,14 @@ export class Jugadores {
     });
   }
 
+  /** Evita que Enter dispare el envío del formulario: solo se guarda con clic explícito en "Guardar". */
+  protected blockEnterSubmit(event: Event): void {
+    const target = event.target as HTMLElement;
+    if (target.tagName !== 'BUTTON') {
+      event.preventDefault();
+    }
+  }
+
   protected submitPlayer(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -123,7 +154,7 @@ export class Jugadores {
     }
 
     const value = this.form.getRawValue();
-    const newAthlete = this.playersService.addAthlete({
+    const payload = {
       firstName: value.firstName,
       lastName: value.lastName,
       category: value.category as Category,
@@ -132,8 +163,16 @@ export class Jugadores {
       birthDate: new Date(value.birthDate),
       dominantHand: value.dominantHand,
       paddleGrip: value.paddleGrip,
-    });
+    };
 
+    const editingId = this.editingAthleteId();
+    if (editingId !== null) {
+      this.playersService.updateAthlete(editingId, payload);
+      this.closeForm();
+      return;
+    }
+
+    const newAthlete = this.playersService.addAthlete(payload);
     this.lastCreated.set(newAthlete);
     this.form.reset({
       firstName: '',
@@ -147,6 +186,14 @@ export class Jugadores {
     });
   }
 
+  /** Formatea una fecha a 'yyyy-MM-dd' para precargar un <input type="date">. */
+  private toDateInputValue(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   /**
    * Construye el enlace de WhatsApp Web API (https://wa.me/{telefono}?text={mensaje}).
    * 1) El teléfono se limpia a solo dígitos (wa.me no acepta espacios/guiones/"+").
@@ -156,9 +203,9 @@ export class Jugadores {
   protected buildWhatsappLink(athlete: Athlete): string {
     const digitsOnly = athlete.phone.replace(/[^0-9]/g, '');
     const message =
-      `¡Hola ${athlete.firstName}! El entrenador te ha dado de alta en la app de Tenis de Mesa. ` +
+      `¡Hola ${athlete.firstName}! El entrenador te ha dado de alta en SportLink. ` +
       `Tu usuario es: ${athlete.username} y tu clave temporal es: ${athlete.tempPassword}. ` +
-      `Ingresa en: https://tt-trainer.app para gestionar tus asistencias.`;
+      `Ingresa en: https://sportlink.app para gestionar tus asistencias.`;
 
     return `https://wa.me/${digitsOnly}?text=${encodeURIComponent(message)}`;
   }

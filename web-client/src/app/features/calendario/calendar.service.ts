@@ -74,6 +74,8 @@ function buildMockSessions(): TrainingSession[] {
   ];
 }
 
+const STORAGE_KEY = 'tt-trainer-calendar-sessions';
+
 @Injectable({ providedIn: 'root' })
 export class CalendarService {
   /** Jugadores mock disponibles para "iniciar sesión como" en la Vista Jugador. */
@@ -81,7 +83,7 @@ export class CalendarService {
 
   /** Fuente única de verdad: al mutarse, tanto la Vista Entrenador como la Vista
    *  Jugador (que leen este mismo signal) se recalculan y repintan automáticamente. */
-  readonly sessions = signal<TrainingSession[]>(buildMockSessions());
+  readonly sessions = signal<TrainingSession[]>(this.readStored());
 
   readonly role = signal<UserRole>('entrenador');
   readonly currentPlayerId = signal<number>(MOCK_PLAYERS[0].id);
@@ -141,5 +143,28 @@ export class CalendarService {
             },
       ),
     );
+    this.persist();
+  }
+
+  /** Persiste las sesiones (con sus asistencias) en localStorage para que sobrevivan a recargas. */
+  private persist(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.sessions()));
+    } catch {
+      // Almacenamiento no disponible (modo privado, cuota excedida, etc.): se ignora silenciosamente.
+    }
+  }
+
+  /** Lee las sesiones guardadas; si no hay nada o está corrupto, usa la semilla mock determinística. */
+  private readStored(): TrainingSession[] {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return buildMockSessions();
+    try {
+      const parsed = JSON.parse(raw) as TrainingSession[];
+      if (!Array.isArray(parsed)) return buildMockSessions();
+      return parsed.map((session) => ({ ...session, date: new Date(session.date) }));
+    } catch {
+      return buildMockSessions();
+    }
   }
 }

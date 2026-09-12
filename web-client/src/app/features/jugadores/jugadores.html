@@ -217,6 +217,15 @@
 
             <button
               type="button"
+              (click)="openEditForm(athlete)"
+              class="inline-flex items-center justify-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <svg lucidePencil [size]="14" class="block"></svg>
+              Editar
+            </button>
+
+            <button
+              type="button"
               (click)="toggleStatus(athlete.id)"
               class="inline-flex items-center justify-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
             >
@@ -247,7 +256,7 @@
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
         <div class="mb-4 flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-900">Registrar Jugador</h2>
+          <h2 class="text-lg font-semibold text-gray-900">{{ isEditing() ? 'Editar Jugador' : 'Registrar Jugador' }}</h2>
           <button type="button" (click)="closeForm()" class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
             <svg lucideX [size]="20" class="block"></svg>
           </button>
@@ -280,7 +289,7 @@
             </div>
           </div>
         } @else {
-        <form [formGroup]="form" (ngSubmit)="submitPlayer()" class="flex flex-col gap-4">
+        <form [formGroup]="form" (ngSubmit)="submitPlayer()" (keydown.enter)="blockEnterSubmit($event)" class="flex flex-col gap-4">
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label for="firstName" class="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
@@ -401,7 +410,7 @@
               type="submit"
               class="flex-1 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
             >
-              Guardar
+              {{ isEditing() ? 'Guardar Cambios' : 'Guardar' }}
             </button>
           </div>
         </form>

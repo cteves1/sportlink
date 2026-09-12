@@ -52,63 +52,7 @@ function normalize(text: string): string {
     .replace(/\s+/g, '');
 }
 
-type SeedAthlete = Omit<Athlete, 'welcomeFormCompleted' | 'welcomeForm'>;
-
-function buildMockAthletes(): Athlete[] {
-  const named: SeedAthlete[] = [
-    { id: 1, firstName: 'Matías', lastName: 'Fernández', category: 1, status: 'activo', playerType: 'regular', phone: '+54 9 11 5551-0001', username: '', tempPassword: '', attendance: 96, birthDate: new Date(2005, 2, 14), dominantHand: 'derecha', paddleGrip: 'clasica' },
-    { id: 2, firstName: 'Sofía', lastName: 'Rojas', category: 2, status: 'activo', playerType: 'regular', phone: '+54 9 11 5551-0002', username: '', tempPassword: '', attendance: 90, birthDate: new Date(2007, 6, 3), dominantHand: 'derecha', paddleGrip: 'lapicero' },
-    { id: 3, firstName: 'Diego', lastName: 'Vargas', category: 3, status: 'activo', playerType: 'regular', phone: '+54 9 11 5551-0003', username: '', tempPassword: '', attendance: 78, birthDate: new Date(2009, 9, 21), dominantHand: 'izquierda', paddleGrip: 'clasica' },
-    { id: 4, firstName: 'Camila', lastName: 'Torres', category: 3, status: 'activo', playerType: 'regular', phone: '+54 9 11 5551-0004', username: '', tempPassword: '', attendance: 85, birthDate: new Date(2008, 1, 9), dominantHand: 'derecha', paddleGrip: 'clasica' },
-    { id: 5, firstName: 'Ignacio', lastName: 'Soto', category: 4, status: 'activo', playerType: 'regular', phone: '+54 9 11 5551-0005', username: '', tempPassword: '', attendance: 88, birthDate: new Date(2010, 4, 30), dominantHand: 'derecha', paddleGrip: 'lapicero' },
-    { id: 6, firstName: 'Valentina', lastName: 'Muñoz', category: 4, status: 'activo', playerType: 'regular', phone: '+54 9 11 5551-0006', username: '', tempPassword: '', attendance: 92, birthDate: new Date(2011, 7, 17), dominantHand: 'izquierda', paddleGrip: 'clasica' },
-    { id: 7, firstName: 'Benjamín', lastName: 'Castro', category: 5, status: 'inactivo', playerType: 'invitado', phone: '+54 9 11 5551-0007', username: '', tempPassword: '', attendance: 60, birthDate: new Date(2006, 11, 5), dominantHand: 'derecha', paddleGrip: 'clasica' },
-    { id: 8, firstName: 'Antonia', lastName: 'Reyes', category: 6, status: 'activo', playerType: 'regular', phone: '+54 9 11 5551-0008', username: '', tempPassword: '', attendance: 74, birthDate: new Date(2012, 3, 22), dominantHand: 'derecha', paddleGrip: 'clasica' },
-    { id: 9, firstName: 'Tomás', lastName: 'Silva', category: 7, status: 'activo', playerType: 'regular', phone: '+54 9 11 5551-0009', username: '', tempPassword: '', attendance: 82, birthDate: new Date(2013, 8, 11), dominantHand: 'izquierda', paddleGrip: 'lapicero' },
-    { id: 10, firstName: 'Isidora', lastName: 'Pérez', category: 8, status: 'activo', playerType: 'regular', phone: '+54 9 11 5551-0010', username: '', tempPassword: '', attendance: 95, birthDate: new Date(2014, 5, 27), dominantHand: 'derecha', paddleGrip: 'clasica' },
-  ];
-
-  // Jugadores 11-46: placeholders numerados, con status/tipo/categoría variados
-  // cíclicamente para cubrir todos los filtros desde el primer momento.
-  const placeholders: SeedAthlete[] = [];
-  for (let n = 11; n <= 46; n++) {
-    const category = (((n - 1) % 8) + 1) as Category;
-    const status: Athlete['status'] = n % 4 === 0 ? 'inactivo' : 'activo';
-    const playerType: Athlete['playerType'] = n % 5 === 0 ? 'invitado' : 'regular';
-    placeholders.push({
-      id: n,
-      firstName: `Jugador`,
-      lastName: `${n}`,
-      category,
-      status,
-      playerType,
-      phone: `+54 9 11 5551-${String(n).padStart(4, '0')}`,
-      username: '',
-      tempPassword: '',
-      attendance: 50 + ((n * 7) % 50),
-      birthDate: new Date(2000 + (n % 15), n % 12, (n % 27) + 1),
-      dominantHand: n % 2 === 0 ? 'derecha' : 'izquierda',
-      paddleGrip: n % 3 === 0 ? 'lapicero' : 'clasica',
-    });
-  }
-
-  // Los jugadores semilla ya forman parte del club: se consideran onboardeados
-  // (no se guardan respuestas históricas del formulario de bienvenida).
-  const all = [...named, ...placeholders].map((athlete) => ({
-    ...athlete,
-    welcomeFormCompleted: true,
-    welcomeForm: null,
-  }));
-
-  // Asigna username/tempPassword de forma determinística para el seed inicial.
-  const usedUsernames = new Set<string>();
-  for (const athlete of all) {
-    athlete.username = reserveUsername(athlete.firstName, athlete.lastName, usedUsernames);
-    athlete.tempPassword = `TM-2026-${athlete.id.toString(36).toUpperCase().padStart(2, '0')}${randomAlnum(2)}`;
-  }
-
-  return all;
-}
+const STORAGE_KEY = 'tt-trainer-players';
 
 function reserveUsername(firstName: string, lastName: string, used: Set<string>): string {
   const base = `${normalize(firstName)}.${normalize(lastName)}`;
@@ -133,7 +77,7 @@ function randomAlnum(length: number): string {
 
 @Injectable({ providedIn: 'root' })
 export class PlayersService {
-  private readonly _athletes = signal<Athlete[]>(buildMockAthletes());
+  private readonly _athletes = signal<Athlete[]>(this.readStored());
   readonly athletes = this._athletes.asReadonly();
 
   private readonly usedUsernames = new Set(this._athletes().map((a) => a.username));
@@ -159,7 +103,30 @@ export class PlayersService {
     };
 
     this._athletes.update((list) => [...list, newAthlete]);
+    this.persist();
     return newAthlete;
+  }
+
+  /** Actualiza los datos editables de un jugador existente (no toca usuario/clave/estado/asistencia). */
+  updateAthlete(athleteId: number, input: NewAthleteInput): void {
+    this._athletes.update((list) =>
+      list.map((athlete) =>
+        athlete.id === athleteId
+          ? {
+              ...athlete,
+              firstName: input.firstName,
+              lastName: input.lastName,
+              category: input.category,
+              phone: input.phone,
+              playerType: input.playerType,
+              birthDate: input.birthDate,
+              dominantHand: input.dominantHand,
+              paddleGrip: input.paddleGrip,
+            }
+          : athlete,
+      ),
+    );
+    this.persist();
   }
 
   /** Guarda las respuestas del formulario de bienvenida y lo marca como completado. */
@@ -171,6 +138,7 @@ export class PlayersService {
           : athlete,
       ),
     );
+    this.persist();
   }
 
   /** True si el jugador existe y todavía no completó el formulario de bienvenida. */
@@ -188,9 +156,32 @@ export class PlayersService {
           : athlete,
       ),
     );
+    this.persist();
   }
 
   findByUsername(username: string): Athlete | undefined {
     return this._athletes().find((athlete) => athlete.username === username);
+  }
+
+  /** Persiste la lista completa de jugadores en localStorage para que sobreviva a recargas. */
+  private persist(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this._athletes()));
+    } catch {
+      // Almacenamiento no disponible (modo privado, cuota excedida, etc.): se ignora silenciosamente.
+    }
+  }
+
+  /** Lee la lista de jugadores guardada; si no hay nada o está corrupta, arranca vacía. */
+  private readStored(): Athlete[] {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw) as Athlete[];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map((athlete) => ({ ...athlete, birthDate: new Date(athlete.birthDate) }));
+    } catch {
+      return [];
+    }
   }
 }

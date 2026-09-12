@@ -346,10 +346,12 @@ function buildProfile(athleteId: number): EliteAthleteProfile {
   };
 }
 
+const STORAGE_KEY = 'tt-trainer-atleta-profiles';
+
 @Injectable({ providedIn: 'root' })
 export class AtletaService {
   /** Fichas ya materializadas, indexadas por id de atleta. Las mutaciones repintan los tabs que las leen. */
-  private readonly profiles = signal<Record<number, EliteAthleteProfile>>({});
+  private readonly profiles = signal<Record<number, EliteAthleteProfile>>(this.readStored());
 
   /**
    * Ficha de seguimiento del atleta. Si todavía no fue modificada, devuelve la
@@ -395,5 +397,37 @@ export class AtletaService {
       ...profiles,
       [athleteId]: mutate(profiles[athleteId] ?? buildProfile(athleteId)),
     }));
+    this.persist();
+  }
+
+  /** Persiste las fichas modificadas en localStorage para que sobrevivan a recargas. */
+  private persist(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.profiles()));
+    } catch {
+      // Almacenamiento no disponible (modo privado, cuota excedida, etc.): se ignora silenciosamente.
+    }
+  }
+
+  /** Lee las fichas guardadas (reviviendo las fechas de las competencias); si no hay nada, arranca vacío. */
+  private readStored(): Record<number, EliteAthleteProfile> {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw) as Record<string, EliteAthleteProfile>;
+      const revived: Record<number, EliteAthleteProfile> = {};
+      for (const [athleteId, profile] of Object.entries(parsed)) {
+        revived[Number(athleteId)] = {
+          ...profile,
+          competitions: profile.competitions.map((competition) => ({
+            ...competition,
+            date: new Date(competition.date),
+          })),
+        };
+      }
+      return revived;
+    } catch {
+      return {};
+    }
   }
 }

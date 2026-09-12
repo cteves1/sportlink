@@ -24,9 +24,8 @@ const PLAYER_MOCK_DOMAIN = '@ttclub.mock';
 
 const INVALID_CREDENTIALS_ERROR = 'Credenciales inválidas. Intenta nuevamente.';
 
-/** Cuentas demo fijas para probar rápidamente ambos roles sin depender de la lista completa de jugadores. */
+/** Cuenta demo fija para probar rápidamente el rol de entrenador. */
 const DEMO_ADMIN_EMAIL = 'entrenador@ttclub.mock';
-const DEMO_PLAYER_EMAIL = 'jugador@ttclub.mock';
 const DEMO_PASSWORD = '1234';
 
 @Injectable({ providedIn: 'root' })
@@ -48,23 +47,13 @@ export class AuthService {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Cuentas demo: entrenador@ttclub.mock (admin) y jugador@ttclub.mock (jugador), clave 1234.
-    if (normalizedEmail === DEMO_ADMIN_EMAIL || normalizedEmail === DEMO_PLAYER_EMAIL) {
+    // Cuenta demo: entrenador@ttclub.mock (admin), clave 1234.
+    if (normalizedEmail === DEMO_ADMIN_EMAIL) {
       if (password !== DEMO_PASSWORD) {
         return { success: false, error: INVALID_CREDENTIALS_ERROR };
       }
 
-      if (normalizedEmail === DEMO_ADMIN_EMAIL) {
-        return this.startSession({ name: 'Entrenador Demo', email, role: 'admin' });
-      }
-
-      const demoPlayer = this.playersService.athletes()[0];
-      return this.startSession({
-        name: `${demoPlayer.firstName} ${demoPlayer.lastName}`,
-        email,
-        role: 'player',
-        athleteId: demoPlayer.id,
-      });
+      return this.startSession({ name: 'Entrenador Demo', email, role: 'admin' });
     }
 
     // Login de jugador: username@ttclub.mock. Se valida el estado de la cuenta contra PlayersService.
