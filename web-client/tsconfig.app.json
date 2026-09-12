@@ -3,7 +3,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": []
+    "types": ["webxr"]
   },
   "include": [
     "src/**/*.ts"

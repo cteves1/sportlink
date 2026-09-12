@@ -1,0 +1,135 @@
+<div class="flex flex-col gap-6">
+  <a
+    routerLink="/jugadores"
+    class="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-brand-700"
+  >
+    <svg lucideArrowLeft [size]="16" class="block"></svg>
+    Volver a Jugadores
+  </a>
+
+  @if (athlete(); as athlete) {
+    @if (isElite()) {
+      <!-- Cabecera de la ficha -->
+      <header class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-1">
+          <h1 class="text-2xl font-semibold text-gray-900">{{ athlete.firstName }} {{ athlete.lastName }}</h1>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-300">
+              Cat 1 · Élite
+            </span>
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+              [class.bg-green-100]="athlete.status === 'activo'"
+              [class.text-green-700]="athlete.status === 'activo'"
+              [class.bg-gray-200]="athlete.status === 'inactivo'"
+              [class.text-gray-600]="athlete.status === 'inactivo'"
+            >
+              <span
+                class="h-2 w-2 rounded-full"
+                [class.bg-green-500]="athlete.status === 'activo'"
+                [class.bg-gray-400]="athlete.status === 'inactivo'"
+              ></span>
+              {{ athlete.status === 'activo' ? 'Activo' : 'Inactivo' }}
+            </span>
+            <span class="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">
+              Seguimiento de alto rendimiento
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Pestañas de la ficha -->
+      <nav class="flex gap-1 overflow-x-auto rounded-full bg-gray-100 p-1">
+        <button
+          type="button"
+          (click)="selectTab('info')"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
+          [class.bg-white]="activeTab() === 'info'"
+          [class.shadow-sm]="activeTab() === 'info'"
+          [class.text-gray-900]="activeTab() === 'info'"
+          [class.text-gray-500]="activeTab() !== 'info'"
+        >
+          <svg lucideUserRound [size]="14" class="block"></svg>
+          Información
+        </button>
+        <button
+          type="button"
+          (click)="selectTab('entrenamiento')"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
+          [class.bg-white]="activeTab() === 'entrenamiento'"
+          [class.shadow-sm]="activeTab() === 'entrenamiento'"
+          [class.text-gray-900]="activeTab() === 'entrenamiento'"
+          [class.text-gray-500]="activeTab() !== 'entrenamiento'"
+        >
+          <svg lucideDumbbell [size]="14" class="block"></svg>
+          Entrenamiento
+        </button>
+        <button
+          type="button"
+          (click)="selectTab('asistencia')"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
+          [class.bg-white]="activeTab() === 'asistencia'"
+          [class.shadow-sm]="activeTab() === 'asistencia'"
+          [class.text-gray-900]="activeTab() === 'asistencia'"
+          [class.text-gray-500]="activeTab() !== 'asistencia'"
+        >
+          <svg lucideClipboardCheck [size]="14" class="block"></svg>
+          Asistencia
+        </button>
+        <button
+          type="button"
+          (click)="selectTab('competencia')"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
+          [class.bg-white]="activeTab() === 'competencia'"
+          [class.shadow-sm]="activeTab() === 'competencia'"
+          [class.text-gray-900]="activeTab() === 'competencia'"
+          [class.text-gray-500]="activeTab() !== 'competencia'"
+        >
+          <svg lucideTrophy [size]="14" class="block"></svg>
+          Competencia
+        </button>
+        <button
+          type="button"
+          (click)="selectTab('anual')"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
+          [class.bg-white]="activeTab() === 'anual'"
+          [class.shadow-sm]="activeTab() === 'anual'"
+          [class.text-gray-900]="activeTab() === 'anual'"
+          [class.text-gray-500]="activeTab() !== 'anual'"
+        >
+          <svg lucideCalendarRange [size]="14" class="block"></svg>
+          Calendario Anual
+        </button>
+      </nav>
+
+      @switch (activeTab()) {
+        @case ('info') {
+          <app-atleta-info [athlete]="athlete" />
+        }
+        @case ('entrenamiento') {
+          <app-atleta-entrenamiento [athleteId]="athlete.id" />
+        }
+        @case ('asistencia') {
+          <app-atleta-asistencia [athleteId]="athlete.id" />
+        }
+        @case ('competencia') {
+          <app-atleta-competencia [athleteId]="athlete.id" />
+        }
+        @case ('anual') {
+          <app-atleta-calendario-anual [athleteId]="athlete.id" />
+        }
+      }
+    } @else {
+      <div class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+        <p class="font-medium text-gray-700">
+          {{ athlete.firstName }} {{ athlete.lastName }} es categoría {{ athlete.category }}.
+        </p>
+        <p class="mt-1">La ficha de seguimiento está disponible solo para atletas de categoría 1 (élite).</p>
+      </div>
+    }
+  } @else {
+    <div class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+      No encontramos al jugador solicitado.
+    </div>
+  }
+</div>

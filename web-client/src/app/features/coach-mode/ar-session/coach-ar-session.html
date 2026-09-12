@@ -1,0 +1,113 @@
+<div class="relative h-dvh w-full overflow-hidden bg-black">
+  @switch (phase()) {
+    @case ('checking') {
+      <div class="flex h-full items-center justify-center text-white">
+        <p class="text-sm text-gray-300">Comprobando soporte de Realidad Aumentada…</p>
+      </div>
+    }
+    @case ('unsupported') {
+      <app-ar-not-supported [message]="notSupportedMessage" />
+    }
+    @case ('error') {
+      <div
+        class="flex h-full flex-col items-center justify-center gap-4 bg-gray-900 p-8 text-center text-white"
+      >
+        <svg lucideCircleAlert [size]="40" class="block text-red-400"></svg>
+        <h1 class="text-lg font-semibold">No se pudo iniciar la Realidad Aumentada</h1>
+        <p class="max-w-sm text-sm text-gray-300">{{ errorMessage() }}</p>
+        <button
+          type="button"
+          (click)="exitSession()"
+          class="mt-2 rounded-lg bg-white/10 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/20"
+        >
+          Volver
+        </button>
+      </div>
+    }
+    @default {
+      <!-- Lienzo WebGL/WebXR: ocupa toda la pantalla, la cámara del dispositivo se ve a través suyo. -->
+      <canvas #canvas class="h-full w-full"></canvas>
+
+      <!-- Overlay DOM (WebXR dom-overlay): botones grandes, no bloquean la vista de la cámara. -->
+      <div #overlay class="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
+        <div class="flex items-center justify-between">
+          <span
+            class="pointer-events-auto rounded-full bg-black/50 px-3 py-1.5 text-xs font-medium text-white backdrop-blur"
+          >
+            {{ drill?.title }}
+          </span>
+          <button
+            type="button"
+            (click)="exitSession()"
+            class="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur hover:bg-black/70"
+          >
+            <svg lucideX [size]="20" class="block"></svg>
+          </button>
+        </div>
+
+        @if (phase() === 'idle') {
+          <div
+            class="pointer-events-auto flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)]"
+          >
+            <p
+              class="rounded-lg bg-black/50 px-4 py-2 text-center text-sm text-white backdrop-blur"
+            >
+              Activa la cámara para calibrar tu mesa y ver el ejercicio en Realidad Aumentada.
+            </p>
+            <button
+              type="button"
+              (click)="startArSession()"
+              class="rounded-full bg-brand-600 px-6 py-3 font-medium text-white shadow-lg hover:bg-brand-700"
+            >
+              Activar cámara y RA
+            </button>
+          </div>
+        }
+
+        @if (phase() === 'starting') {
+          <div class="pointer-events-auto flex justify-center pb-[env(safe-area-inset-bottom)]">
+            <p class="rounded-lg bg-black/50 px-4 py-2 text-sm text-white backdrop-blur">
+              Iniciando cámara…
+            </p>
+          </div>
+        }
+
+        @if (phase() === 'active') {
+          <div
+            class="pointer-events-auto flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)]"
+          >
+            @if (!calibrated()) {
+              <p
+                class="rounded-lg bg-black/50 px-4 py-2 text-center text-sm text-white backdrop-blur"
+              >
+                Apunta al centro de la mesa y toca la pantalla sobre la retícula verde para
+                calibrar.
+              </p>
+            } @else {
+              <div class="flex items-center gap-3">
+                <button
+                  type="button"
+                  (click)="togglePlaying()"
+                  class="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur hover:bg-black/70"
+                >
+                  @if (playing()) {
+                    <svg lucideCirclePause [size]="22" class="block"></svg>
+                  } @else {
+                    <svg lucideCirclePlay [size]="22" class="block"></svg>
+                  }
+                </button>
+                <button
+                  type="button"
+                  (click)="recalibrate()"
+                  class="flex h-12 w-12 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur hover:bg-black/70"
+                >
+                  <svg lucideRotateCcw [size]="20" class="block"></svg>
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+</div>

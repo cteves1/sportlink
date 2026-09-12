@@ -1,0 +1,38 @@
+.login-hero {
+  background: radial-gradient(
+    circle at 20% 20%,
+    var(--color-brand-500) 0%,
+    var(--color-brand-700) 55%,
+    var(--color-brand-900) 100%
+  );
+}
+
+.login-lines line {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 1.5;
+  stroke-dasharray: 12 18;
+  animation: login-lines-flow 6s linear infinite;
+}
+
+.login-lines line:nth-child(2) {
+  animation-duration: 8s;
+  animation-direction: reverse;
+  stroke: rgba(255, 255, 255, 0.2);
+}
+
+.login-lines line:nth-child(3) {
+  animation-duration: 10s;
+  stroke: rgba(255, 255, 255, 0.15);
+}
+
+.login-lines line:nth-child(4) {
+  animation-duration: 7s;
+  animation-direction: reverse;
+  stroke: rgba(255, 255, 255, 0.25);
+}
+
+@keyframes login-lines-flow {
+  to {
+    stroke-dashoffset: -120;
+  }
+}

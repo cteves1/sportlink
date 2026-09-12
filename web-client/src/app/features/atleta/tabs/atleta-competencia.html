@@ -1,0 +1,109 @@
+<div class="flex flex-col gap-4">
+  <!-- Resumen de la temporada -->
+  <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Torneos jugados</p>
+      <p class="text-xl font-semibold text-gray-900">{{ competitions().length }}</p>
+    </div>
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Récord de partidos</p>
+      <p class="text-xl font-semibold text-gray-900">{{ wins() }}V - {{ losses() }}D</p>
+      <p class="text-xs text-gray-500">{{ winRate() }}% de victorias</p>
+    </div>
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Mejor resultado</p>
+      <p class="text-xl font-semibold text-gray-900">{{ bestPlacement() }}</p>
+    </div>
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Partidos disputados</p>
+      <p class="text-xl font-semibold text-gray-900">{{ totalMatches() }}</p>
+    </div>
+  </section>
+
+  <!-- Listado de torneos -->
+  @if (competitions().length > 0) {
+    <section class="flex flex-col gap-3">
+      @for (competition of competitions(); track competition.id) {
+        <article class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <header class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div class="flex flex-col gap-1">
+              <h3 class="inline-flex items-center gap-2 font-semibold text-gray-900">
+                <svg lucideTrophy [size]="16" class="block text-brand-700"></svg>
+                {{ competition.name }}
+              </h3>
+              <p class="inline-flex items-center gap-1.5 text-xs text-gray-500">
+                <svg lucideMapPin [size]="13" class="block"></svg>
+                {{ competition.city }} · {{ formatDate(competition.date) }} · {{ competition.draw }}
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span
+                class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                [class]="levelBadgeClasses(competition.level)"
+              >
+                {{ levelLabel(competition.level) }}
+              </span>
+              <span
+                class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                [class]="placementBadgeClasses(competition.placement)"
+              >
+                {{ competition.placement }}
+              </span>
+              <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+                {{ record(competition) }}
+              </span>
+            </div>
+          </header>
+
+          @if (competition.notes) {
+            <p class="rounded-lg bg-brand-50 p-3 text-xs text-gray-700">
+              <span class="font-medium text-brand-700">Observación del entrenador:</span>
+              {{ competition.notes }}
+            </p>
+          }
+
+          @if (expandedId() === competition.id) {
+            <ul class="flex flex-col gap-2">
+              @for (match of competition.matches; track match.round + match.opponent) {
+                <li class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2">
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-800">{{ match.opponent }}</span>
+                    <span class="text-xs text-gray-500">{{ match.round }} · {{ match.score }}</span>
+                  </div>
+                  <span
+                    class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                    [class.bg-green-100]="match.result === 'victoria'"
+                    [class.text-green-700]="match.result === 'victoria'"
+                    [class.bg-red-100]="match.result === 'derrota'"
+                    [class.text-red-700]="match.result === 'derrota'"
+                  >
+                    {{ match.result === 'victoria' ? 'Victoria' : 'Derrota' }}
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+
+          <button
+            type="button"
+            (click)="toggleExpand(competition.id)"
+            class="inline-flex w-fit items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          >
+            @if (expandedId() === competition.id) {
+              <svg lucideChevronUp [size]="14" class="block"></svg>
+              Ocultar partidos
+            } @else {
+              <svg lucideChevronDown [size]="14" class="block"></svg>
+              Ver partidos ({{ competition.matches.length }})
+            }
+          </button>
+        </article>
+      }
+    </section>
+  } @else {
+    <div class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+      Todavía no hay torneos registrados para este atleta.
+    </div>
+  }
+</div>

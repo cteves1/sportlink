@@ -1,0 +1,122 @@
+<div class="flex flex-col gap-4">
+  <header class="flex flex-col gap-1 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <h2 class="text-sm font-semibold text-gray-900">Calendario anual {{ year() }}</h2>
+    <p class="text-xs text-gray-500">
+      Objetivos a corto, mediano y largo plazo mes a mes. Los torneos de la temporada se muestran en el mes
+      correspondiente.
+    </p>
+  </header>
+
+  <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    @for (goal of goals(); track goal.month) {
+      <article
+        class="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm"
+        [class.border-brand-600]="isCurrentMonth(goal.month)"
+        [class.ring-1]="isCurrentMonth(goal.month)"
+        [class.ring-brand-600]="isCurrentMonth(goal.month)"
+        [class.border-gray-200]="!isCurrentMonth(goal.month)"
+      >
+        <header class="flex items-center justify-between gap-2">
+          <h3 class="text-sm font-semibold capitalize text-gray-900">{{ monthLabel(goal.month) }}</h3>
+          @if (isCurrentMonth(goal.month)) {
+            <span class="rounded-full bg-brand-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+              Mes actual
+            </span>
+          }
+        </header>
+
+        @if (competitionsOf(goal.month).length > 0) {
+          <div class="flex flex-wrap gap-1.5">
+            @for (competition of competitionsOf(goal.month); track competition.id) {
+              <span
+                class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800"
+              >
+                <svg lucideTrophy [size]="11" class="block"></svg>
+                {{ competition.name }}
+              </span>
+            }
+          </div>
+        }
+
+        @if (editingMonth() === goal.month) {
+          <form [formGroup]="form" (ngSubmit)="saveGoal(goal.month)" class="flex flex-col gap-3">
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-500" [for]="'shortTerm-' + goal.month">
+                Corto plazo
+              </label>
+              <textarea
+                [id]="'shortTerm-' + goal.month"
+                formControlName="shortTerm"
+                rows="2"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              ></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-500" [for]="'mediumTerm-' + goal.month">
+                Mediano plazo
+              </label>
+              <textarea
+                [id]="'mediumTerm-' + goal.month"
+                formControlName="mediumTerm"
+                rows="2"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              ></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-xs font-medium text-gray-500" [for]="'longTerm-' + goal.month">
+                Largo plazo
+              </label>
+              <textarea
+                [id]="'longTerm-' + goal.month"
+                formControlName="longTerm"
+                rows="2"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              ></textarea>
+            </div>
+
+            <div class="flex gap-2">
+              <button
+                type="button"
+                (click)="cancelEditing()"
+                class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <svg lucideX [size]="14" class="block"></svg>
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                class="flex-1 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+              >
+                Guardar
+              </button>
+            </div>
+          </form>
+        } @else {
+          <dl class="flex flex-col gap-2">
+            <div>
+              <dt class="text-xs font-medium text-gray-500">Corto plazo</dt>
+              <dd class="text-sm text-gray-800">{{ goal.shortTerm || '—' }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-medium text-gray-500">Mediano plazo</dt>
+              <dd class="text-sm text-gray-800">{{ goal.mediumTerm || '—' }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-medium text-gray-500">Largo plazo</dt>
+              <dd class="text-sm text-gray-800">{{ goal.longTerm || '—' }}</dd>
+            </div>
+          </dl>
+
+          <button
+            type="button"
+            (click)="startEditing(goal)"
+            class="inline-flex w-fit items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <svg lucidePencil [size]="14" class="block"></svg>
+            Editar objetivos
+          </button>
+        }
+      </article>
+    }
+  </section>
+</div>

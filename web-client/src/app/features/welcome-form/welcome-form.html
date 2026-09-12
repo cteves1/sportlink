@@ -1,0 +1,212 @@
+<div class="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+  <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <header class="mb-6 text-center">
+      <h1 class="text-2xl font-semibold text-gray-900">¡Bienvenido{{ athleteFirstName() ? ', ' + athleteFirstName() : '' }}!</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        Antes de empezar, tu entrenador quiere conocerte mejor. Responde estas 3 breves secciones.
+      </p>
+    </header>
+
+    <!-- Indicador de progreso -->
+    <div class="mb-6 flex items-center justify-center gap-2">
+      @for (s of [1, 2, 3]; track s) {
+        <div class="flex items-center gap-2">
+          <div
+            class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
+            [class.bg-brand-600]="step() >= s"
+            [class.text-white]="step() >= s"
+            [class.bg-gray-100]="step() < s"
+            [class.text-gray-500]="step() < s"
+          >
+            @if (step() > s) {
+              <svg lucideCheck [size]="16" class="block"></svg>
+            } @else {
+              {{ s }}
+            }
+          </div>
+          @if (s < 3) {
+            <div class="h-0.5 w-8 rounded-full" [class.bg-brand-600]="step() > s" [class.bg-gray-200]="step() <= s"></div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Paso 1: Objetivos -->
+    @if (step() === 1) {
+      <form [formGroup]="goalsForm" (ngSubmit)="goToNext()" class="flex flex-col gap-4">
+        <div class="mb-1 flex items-center gap-2 text-brand-700">
+          <svg lucideTarget [size]="18" class="block"></svg>
+          <h2 class="text-base font-semibold">Objetivos</h2>
+        </div>
+
+        <div>
+          <label for="mainGoal" class="mb-1 block text-sm font-medium text-gray-700">¿Cuál es tu principal objetivo en el tenis de mesa?</label>
+          <select
+            id="mainGoal"
+            formControlName="mainGoal"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          >
+            <option value="competir">Competir</option>
+            <option value="mejorar-tecnica">Mejorar mi técnica</option>
+            <option value="socializar">Socializar / hacer amigos</option>
+            <option value="mantenerse-en-forma">Mantenerme en forma</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="shortTermGoal" class="mb-1 block text-sm font-medium text-gray-700">¿Qué meta te gustaría lograr en los próximos meses?</label>
+          <textarea
+            id="shortTermGoal"
+            formControlName="shortTermGoal"
+            rows="2"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          ></textarea>
+          @if (goalsForm.controls.shortTermGoal.invalid && goalsForm.controls.shortTermGoal.touched) {
+            <p class="mt-1 text-xs text-red-600">Requerido.</p>
+          }
+        </div>
+
+        <div>
+          <label for="longTermGoal" class="mb-1 block text-sm font-medium text-gray-700">¿Y a más largo plazo?</label>
+          <textarea
+            id="longTermGoal"
+            formControlName="longTermGoal"
+            rows="2"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          ></textarea>
+          @if (goalsForm.controls.longTermGoal.invalid && goalsForm.controls.longTermGoal.touched) {
+            <p class="mt-1 text-xs text-red-600">Requerido.</p>
+          }
+        </div>
+
+        <button
+          type="submit"
+          class="mt-2 inline-flex items-center justify-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          Siguiente
+          <svg lucideArrowRight [size]="16" class="block"></svg>
+        </button>
+      </form>
+    }
+
+    <!-- Paso 2: Motivación -->
+    @if (step() === 2) {
+      <form [formGroup]="motivationForm" (ngSubmit)="goToNext()" class="flex flex-col gap-4">
+        <div class="mb-1 flex items-center gap-2 text-brand-700">
+          <svg lucideHeart [size]="18" class="block"></svg>
+          <h2 class="text-base font-semibold">Motivación</h2>
+        </div>
+
+        <div>
+          <label for="motivation" class="mb-1 block text-sm font-medium text-gray-700">¿Qué te motiva a jugar al tenis de mesa?</label>
+          <textarea
+            id="motivation"
+            formControlName="motivation"
+            rows="2"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          ></textarea>
+          @if (motivationForm.controls.motivation.invalid && motivationForm.controls.motivation.touched) {
+            <p class="mt-1 text-xs text-red-600">Requerido.</p>
+          }
+        </div>
+
+        <div>
+          <label for="coachSupport" class="mb-1 block text-sm font-medium text-gray-700">¿Cómo te gustaría que te acompañe tu entrenador?</label>
+          <textarea
+            id="coachSupport"
+            formControlName="coachSupport"
+            rows="2"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          ></textarea>
+          @if (motivationForm.controls.coachSupport.invalid && motivationForm.controls.coachSupport.touched) {
+            <p class="mt-1 text-xs text-red-600">Requerido.</p>
+          }
+        </div>
+
+        <div class="mt-2 flex gap-3">
+          <button
+            type="button"
+            (click)="goToPrevious()"
+            class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <svg lucideArrowLeft [size]="16" class="block"></svg>
+            Atrás
+          </button>
+          <button
+            type="submit"
+            class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            Siguiente
+            <svg lucideArrowRight [size]="16" class="block"></svg>
+          </button>
+        </div>
+      </form>
+    }
+
+    <!-- Paso 3: Experiencia previa -->
+    @if (step() === 3) {
+      <form [formGroup]="experienceForm" (ngSubmit)="submitForm()" class="flex flex-col gap-4">
+        <div class="mb-1 flex items-center gap-2 text-brand-700">
+          <svg lucideHistory [size]="18" class="block"></svg>
+          <h2 class="text-base font-semibold">Experiencia previa</h2>
+        </div>
+
+        <div>
+          <label for="yearsPlaying" class="mb-1 block text-sm font-medium text-gray-700">¿Hace cuánto juegas al tenis de mesa?</label>
+          <select
+            id="yearsPlaying"
+            formControlName="yearsPlaying"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          >
+            <option value="menos-de-1">Menos de 1 año</option>
+            <option value="1-a-3">Entre 1 y 3 años</option>
+            <option value="3-a-5">Entre 3 y 5 años</option>
+            <option value="mas-de-5">Más de 5 años</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input
+            id="hasCompeted"
+            type="checkbox"
+            formControlName="hasCompeted"
+            class="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-700"
+          />
+          <label for="hasCompeted" class="text-sm font-medium text-gray-700">Ya participé en torneos o competencias</label>
+        </div>
+
+        <div>
+          <label for="selfPerceivedLevel" class="mb-1 block text-sm font-medium text-gray-700">¿Cómo calificarías tu nivel actual?</label>
+          <select
+            id="selfPerceivedLevel"
+            formControlName="selfPerceivedLevel"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          >
+            <option value="principiante">Principiante</option>
+            <option value="intermedio">Intermedio</option>
+            <option value="avanzado">Avanzado</option>
+          </select>
+        </div>
+
+        <div class="mt-2 flex gap-3">
+          <button
+            type="button"
+            (click)="goToPrevious()"
+            class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <svg lucideArrowLeft [size]="16" class="block"></svg>
+            Atrás
+          </button>
+          <button
+            type="submit"
+            class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            <svg lucideCheck [size]="16" class="block"></svg>
+            Finalizar
+          </button>
+        </div>
+      </form>
+    }
+  </div>
+</div>

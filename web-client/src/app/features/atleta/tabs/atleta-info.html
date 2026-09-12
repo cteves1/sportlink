@@ -1,0 +1,116 @@
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+  <!-- Datos personales -->
+  <section class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <h2 class="inline-flex items-center gap-2 text-sm font-semibold text-gray-900">
+      <svg lucideUserRound [size]="16" class="block text-brand-700"></svg>
+      Datos del atleta
+    </h2>
+
+    <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Nombre completo</dt>
+        <dd class="text-sm text-gray-900">{{ athlete().firstName }} {{ athlete().lastName }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Fecha de nacimiento</dt>
+        <dd class="text-sm text-gray-900">{{ birthDateLabel() }} · {{ age() }} años</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Categoría</dt>
+        <dd class="text-sm text-gray-900">Categoría {{ athlete().category }} (élite) · {{ ageGroup() }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Celular</dt>
+        <dd class="text-sm text-gray-900">{{ athlete().phone }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Mano hábil</dt>
+        <dd class="text-sm capitalize text-gray-900">{{ athlete().dominantHand }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Empuñadura</dt>
+        <dd class="text-sm text-gray-900">{{ athlete().paddleGrip === 'clasica' ? 'Clásica' : 'Lapicero' }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Usuario de la app</dt>
+        <dd class="text-sm text-gray-900">{{ athlete().username }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Asistencia acumulada</dt>
+        <dd class="text-sm text-gray-900">{{ athlete().attendance }}%</dd>
+      </div>
+    </dl>
+  </section>
+
+  <!-- Equipamiento -->
+  <section class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <h2 class="inline-flex items-center gap-2 text-sm font-semibold text-gray-900">
+      <svg lucideSwords [size]="16" class="block text-brand-700"></svg>
+      Equipamiento
+    </h2>
+
+    <dl class="flex flex-col gap-3">
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Madera</dt>
+        <dd class="text-sm text-gray-900">{{ profile().equipment.blade }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Goma de derecha</dt>
+        <dd class="text-sm text-gray-900">{{ profile().equipment.rubberForehand }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Goma de revés</dt>
+        <dd class="text-sm text-gray-900">{{ profile().equipment.rubberBackhand }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Pelota de entrenamiento</dt>
+        <dd class="text-sm text-gray-900">{{ profile().equipment.ballBrand }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <!-- Entrenador local + club -->
+  <section class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:col-span-2">
+    <h2 class="inline-flex items-center gap-2 text-sm font-semibold text-gray-900">
+      <svg lucideBuilding2 [size]="16" class="block text-brand-700"></svg>
+      Club y entrenador local
+    </h2>
+
+    <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Club</dt>
+        <dd class="text-sm text-gray-900">{{ profile().club.name }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Sede</dt>
+        <dd class="text-sm text-gray-900">{{ profile().club.venue }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Ciudad</dt>
+        <dd class="text-sm text-gray-900">{{ profile().club.city }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Socio desde</dt>
+        <dd class="text-sm text-gray-900">{{ profile().club.memberSince }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Entrenador local</dt>
+        <dd class="text-sm text-gray-900">{{ profile().club.localCoach }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs font-medium text-gray-500">Contacto</dt>
+        <dd class="text-sm text-gray-900">{{ profile().club.coachPhone }}</dd>
+      </div>
+    </dl>
+
+    <a
+      [href]="coachWhatsappLink()"
+      target="_blank"
+      rel="noopener"
+      class="inline-flex w-fit items-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+    >
+      <svg lucideMessageCircle [size]="14" class="block"></svg>
+      Escribir al entrenador local
+    </a>
+  </section>
+</div>

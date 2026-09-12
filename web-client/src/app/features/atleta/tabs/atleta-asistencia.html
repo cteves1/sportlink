@@ -1,0 +1,125 @@
+<div class="flex flex-col gap-4">
+  <!-- Resumen del mes y del año -->
+  <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Asistencia del mes</p>
+      <p class="text-xl font-semibold text-gray-900">{{ monthSummary().rate }}%</p>
+      <p class="text-xs text-gray-500">{{ monthSummary().present }} de {{ monthSummary().planned }} días</p>
+    </div>
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Ausencias del mes</p>
+      <p class="text-xl font-semibold text-gray-900">{{ monthSummary().absent }}</p>
+      <p class="text-xs text-gray-500">{{ monthSummary().justified }} justificadas</p>
+    </div>
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Días de competencia</p>
+      <p class="text-xl font-semibold text-gray-900">{{ monthSummary().competition }}</p>
+      <p class="text-xs text-gray-500">No cuentan como ausencia</p>
+    </div>
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Acumulado {{ year() }}</p>
+      <p class="text-xl font-semibold text-gray-900">{{ yearSummary().rate }}%</p>
+      <p class="text-xs text-gray-500">{{ yearSummary().present }} de {{ yearSummary().planned }} días</p>
+    </div>
+  </section>
+
+  <!-- Navegación de meses -->
+  <section class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+    <div class="flex items-center justify-between gap-2">
+      <button
+        type="button"
+        (click)="goToPreviousMonth()"
+        [disabled]="!canGoPrevious()"
+        class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
+        aria-label="Mes anterior"
+      >
+        <svg lucideChevronLeft [size]="18" class="block"></svg>
+      </button>
+      <span class="text-sm font-semibold capitalize text-gray-900">{{ monthLabel() }}</span>
+      <button
+        type="button"
+        (click)="goToNextMonth()"
+        [disabled]="!canGoNext()"
+        class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
+        aria-label="Mes siguiente"
+      >
+        <svg lucideChevronRight [size]="18" class="block"></svg>
+      </button>
+    </div>
+
+    <div class="flex gap-2 overflow-x-auto pb-1">
+      @for (month of availableMonths(); track month) {
+        <button
+          type="button"
+          (click)="selectMonth(month)"
+          class="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium"
+          [class.bg-brand-600]="cursorMonth() === month"
+          [class.text-white]="cursorMonth() === month"
+          [class.bg-gray-100]="cursorMonth() !== month"
+          [class.text-gray-700]="cursorMonth() !== month"
+        >
+          {{ monthShortLabel(month) }}
+        </button>
+      }
+    </div>
+  </section>
+
+  <!-- Grilla mensual de asistencia -->
+  <section class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
+    <div class="mb-2 grid grid-cols-7 gap-2 text-center text-xs font-medium text-gray-400">
+      @for (label of weekdayLabels; track label) {
+        <div>{{ label }}</div>
+      }
+    </div>
+
+    <div class="grid grid-cols-7 gap-2">
+      @for (cell of monthGrid(); track cell.dateKey) {
+        <button
+          type="button"
+          (click)="cycleStatus(cell)"
+          [disabled]="!cell.record"
+          class="flex min-h-20 flex-col items-start gap-1.5 rounded-lg border p-2 text-left transition-colors"
+          [class]="statusCellClasses(cell.record)"
+          [class.opacity-40]="!cell.inCurrentMonth"
+          [class.hover:border-brand-400]="cell.record"
+          [title]="cell.record ? 'Click para cambiar el estado' : 'Sin entrenamiento planificado'"
+        >
+          <span
+            class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold"
+            [class.text-gray-700]="!cell.isToday"
+            [class.bg-brand-600]="cell.isToday"
+            [class.text-white]="cell.isToday"
+          >
+            {{ cell.date.getDate() }}
+          </span>
+
+          @if (cell.record) {
+            <span
+              class="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+              [class]="statusBadgeClasses(cell.record.status)"
+            >
+              {{ statusLabel(cell.record.status) }}
+            </span>
+          }
+        </button>
+      }
+    </div>
+
+    <!-- Referencias -->
+    <div class="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3 text-xs text-gray-500">
+      <span class="inline-flex items-center gap-1.5">
+        <span class="h-3 w-3 rounded-sm border border-brand-200 bg-brand-50"></span> Presente
+      </span>
+      <span class="inline-flex items-center gap-1.5">
+        <span class="h-3 w-3 rounded-sm border border-red-200 bg-red-50"></span> Ausente
+      </span>
+      <span class="inline-flex items-center gap-1.5">
+        <span class="h-3 w-3 rounded-sm border border-amber-200 bg-amber-50"></span> Justificado
+      </span>
+      <span class="inline-flex items-center gap-1.5">
+        <span class="h-3 w-3 rounded-sm border border-blue-200 bg-blue-50"></span> Competencia
+      </span>
+      <span>Click en un día planificado para cambiar su estado.</span>
+    </div>
+  </section>
+</div>

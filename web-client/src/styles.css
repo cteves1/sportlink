@@ -1,12 +1,13 @@
 /* You can add global styles to this file, and also import other style files */
 
-html,
-body,
-.p-component {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    Helvetica, Arial, sans-serif;
-}
+@import 'tailwindcss';
 
-body {
-  margin: 0;
+@theme {
+  --color-brand-50: #eafaf1;
+  --color-brand-100: #d1f0dd;
+  --color-brand-500: #16a34a;
+  --color-brand-600: #128a40;
+  --color-brand-700: #0f5132;
+  --color-brand-800: #0c4128;
+  --color-brand-900: #0a2e1f;
 }

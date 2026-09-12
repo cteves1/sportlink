@@ -1,0 +1,333 @@
+<div class="flex flex-col gap-6">
+  <!-- Cabecera -->
+  <header
+    class="flex flex-col gap-2 rounded-2xl bg-gradient-to-r from-brand-700 to-brand-600 p-6 text-white shadow-sm sm:flex-row sm:items-center sm:justify-between"
+  >
+    <div class="flex items-center gap-3">
+      <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/15">
+        <svg lucideSwords [size]="22" class="block"></svg>
+      </span>
+      <div>
+        <h1 class="text-xl font-semibold sm:text-2xl">Modo Coach</h1>
+        <p class="text-sm text-brand-50/90">
+          Configura un partido, sigue el marcador en vivo y registra acciones de cada jugador.
+        </p>
+      </div>
+    </div>
+  </header>
+
+  @if (savedBanner() && !activeMatch()) {
+    <div class="rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-800">
+      Partido guardado correctamente. Puedes configurar uno nuevo cuando quieras.
+    </div>
+  }
+
+  @if (!activeMatch()) {
+    <!-- Panel de configuración del partido -->
+    <section class="flex flex-col gap-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div class="flex flex-col gap-2">
+        <h2 class="font-semibold text-gray-900">Tipo de partido</h2>
+        <div class="flex gap-3">
+          <button
+            type="button"
+            (click)="selectMatchType('singles')"
+            class="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+            [class.border-brand-500]="matchType() === 'singles'"
+            [class.bg-brand-50]="matchType() === 'singles'"
+            [class.text-brand-700]="matchType() === 'singles'"
+            [class.border-gray-200]="matchType() !== 'singles'"
+            [class.text-gray-600]="matchType() !== 'singles'"
+          >
+            <svg lucideSwords [size]="16" class="block"></svg>
+            Individual
+          </button>
+          <button
+            type="button"
+            (click)="selectMatchType('dobles')"
+            class="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+            [class.border-brand-500]="matchType() === 'dobles'"
+            [class.bg-brand-50]="matchType() === 'dobles'"
+            [class.text-brand-700]="matchType() === 'dobles'"
+            [class.border-gray-200]="matchType() !== 'dobles'"
+            [class.text-gray-600]="matchType() !== 'dobles'"
+          >
+            <svg lucideUsers [size]="16" class="block"></svg>
+            Dobles
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        @for (side of sides; track side) {
+          <div class="flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
+            <h3 class="text-sm font-semibold text-gray-900">Lado {{ side }}</h3>
+            @for (group of sideSlots(side); track group; let i = $index) {
+              <div [formGroup]="group" class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <select
+                  formControlName="athleteId"
+                  class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700"
+                >
+                  <option [ngValue]="null">-- Elegir jugador registrado --</option>
+                  @for (athlete of athletes(); track athlete.id) {
+                    <option [ngValue]="athlete.id">{{ athlete.firstName }} {{ athlete.lastName }}</option>
+                  }
+                </select>
+                <input
+                  type="text"
+                  formControlName="manualName"
+                  placeholder="O escribe un nombre"
+                  class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700"
+                />
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      @if (formError()) {
+        <p class="text-sm text-red-600">{{ formError() }}</p>
+      }
+
+      <button
+        type="button"
+        (click)="startMatch()"
+        class="flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 py-3 font-medium text-white shadow-sm transition-colors hover:bg-brand-700"
+      >
+        Iniciar partido
+      </button>
+    </section>
+  } @else {
+    <!-- Panel de seguimiento en vivo -->
+    <section class="flex flex-col gap-6">
+      <!-- Marcador -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        @for (side of sides; track side) {
+          <div class="flex flex-col items-center gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <p class="text-sm font-medium text-gray-500">
+              {{ side === 'A' ? activeMatch()!.sideALabel : activeMatch()!.sideBLabel }}
+            </p>
+            <p class="text-5xl font-bold text-gray-900">
+              {{ side === 'A' ? activeMatch()!.scoreA : activeMatch()!.scoreB }}
+            </p>
+            <div class="flex gap-3">
+              <button
+                type="button"
+                (click)="adjustScore(side, -1)"
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+                aria-label="Restar punto"
+              >
+                <svg lucideMinus [size]="18" class="block"></svg>
+              </button>
+              <button
+                type="button"
+                (click)="adjustScore(side, 1)"
+                class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-600 text-white hover:bg-brand-700"
+                aria-label="Sumar punto"
+              >
+                <svg lucidePlus [size]="18" class="block"></svg>
+              </button>
+            </div>
+
+            @if (sidePlayers(side).length > 1) {
+              <div class="mt-1 flex gap-2">
+                @for (player of sidePlayers(side); track player.slotIndex; let i = $index) {
+                  <button
+                    type="button"
+                    (click)="selectTaggedPlayer(side, i)"
+                    class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                    [class.bg-brand-600]="(side === 'A' ? taggedPlayerA() : taggedPlayerB()) === i"
+                    [class.text-white]="(side === 'A' ? taggedPlayerA() : taggedPlayerB()) === i"
+                    [class.bg-gray-100]="(side === 'A' ? taggedPlayerA() : taggedPlayerB()) !== i"
+                    [class.text-gray-600]="(side === 'A' ? taggedPlayerA() : taggedPlayerB()) !== i"
+                  >
+                    {{ player.name }}
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Resultado del partido -->
+      <div class="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-900">Resultado del partido</h3>
+
+        @if (activeMatch()!.sets.length > 0) {
+          <ul class="flex flex-col gap-1 text-sm text-gray-700">
+            @for (set of activeMatch()!.sets; track set.setNumber) {
+              <li class="flex items-center justify-between gap-3">
+                <span class="text-gray-500">Set {{ set.setNumber }}</span>
+                <span class="font-medium">{{ set.scoreA }} - {{ set.scoreB }}</span>
+                <span class="text-brand-700">
+                  Ganó {{ set.winner === 'A' ? activeMatch()!.sideALabel : activeMatch()!.sideBLabel }}
+                </span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="text-sm text-gray-400">Todavía no se cerró ningún set.</p>
+        }
+
+        <p class="text-sm font-medium text-gray-600">
+          Sets ganados: {{ activeMatch()!.sideALabel }} {{ setsWon('A') }} — {{ setsWon('B') }}
+          {{ activeMatch()!.sideBLabel }}
+        </p>
+
+        <div class="flex flex-wrap gap-3">
+          <button
+            type="button"
+            (click)="finishSet('A')"
+            class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Terminar set: gana {{ activeMatch()!.sideALabel }}
+          </button>
+          <button
+            type="button"
+            (click)="finishSet('B')"
+            class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            Terminar set: gana {{ activeMatch()!.sideBLabel }}
+          </button>
+        </div>
+
+        @if (activeMatch()!.matchWinner) {
+          <div class="rounded-lg bg-brand-50 p-3 text-sm font-medium text-brand-800">
+            Ganador del partido:
+            {{ activeMatch()!.matchWinner === 'A' ? activeMatch()!.sideALabel : activeMatch()!.sideBLabel }}
+          </div>
+        } @else if (activeMatch()!.sets.length > 0) {
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-sm text-gray-500">Indicar ganador del partido:</span>
+            <button
+              type="button"
+              (click)="declareWinner('A')"
+              class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+            >
+              {{ activeMatch()!.sideALabel }}
+            </button>
+            <button
+              type="button"
+              (click)="declareWinner('B')"
+              class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+            >
+              {{ activeMatch()!.sideBLabel }}
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- Panel de tagging -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        @for (side of sides; track side) {
+          <div class="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h3 class="text-sm font-semibold text-gray-900">
+              Acciones — {{ side === 'A' ? activeMatch()!.sideALabel : activeMatch()!.sideBLabel }}
+            </h3>
+
+            <div class="flex flex-col gap-2">
+              <p class="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-emerald-700">
+                <svg lucideThumbsUp [size]="14" class="block"></svg>
+                Buenas acciones
+              </p>
+              <div class="flex flex-wrap gap-2">
+                @for (tag of positiveTags; track tag.id) {
+                  <button
+                    type="button"
+                    (click)="logTag(side, tag.id)"
+                    class="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                  >
+                    {{ tag.label }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <p class="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-red-700">
+                <svg lucideThumbsDown [size]="14" class="block"></svg>
+                Malas acciones
+              </p>
+              <div class="flex flex-wrap gap-2">
+                @for (tag of negativeTags; track tag.id) {
+                  <button
+                    type="button"
+                    (click)="logTag(side, tag.id)"
+                    class="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+                  >
+                    {{ tag.label }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2 border-t border-gray-100 pt-3">
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                Otra acción (no está en la lista)
+              </p>
+              <div class="flex flex-wrap items-center gap-2">
+                <input
+                  #customTagInput
+                  type="text"
+                  placeholder="Escribe la acción..."
+                  class="min-w-40 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700"
+                />
+                <button
+                  type="button"
+                  (click)="addCustomTag(side, 'positiva', customTagInput.value); customTagInput.value = ''"
+                  class="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                >
+                  + Buena
+                </button>
+                <button
+                  type="button"
+                  (click)="addCustomTag(side, 'negativa', customTagInput.value); customTagInput.value = ''"
+                  class="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+                >
+                  + Mala
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Registro de eventos -->
+      <div class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-900">Registro del partido</h3>
+        @if (recentEvents().length === 0) {
+          <p class="text-sm text-gray-400">Todavía no hay eventos registrados.</p>
+        } @else {
+          <ul class="flex max-h-64 flex-col gap-2 overflow-y-auto">
+            @for (event of recentEvents(); track event.id) {
+              <li class="flex items-center justify-between gap-3 text-sm text-gray-700">
+                <span class="text-gray-400">{{ formatTime(event.timestamp) }}</span>
+                <span class="flex-1">
+                  <strong>{{ event.playerLabel }}</strong> — {{ eventDescription(event) }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="flex gap-3">
+        <button
+          type="button"
+          (click)="saveMatch()"
+          class="flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-5 py-3 font-medium text-white shadow-sm transition-colors hover:bg-brand-700"
+        >
+          <svg lucideSave [size]="18" class="block"></svg>
+          Guardar Partido
+        </button>
+        <button
+          type="button"
+          (click)="discardMatch()"
+          class="rounded-lg border border-gray-300 px-5 py-3 font-medium text-gray-600 transition-colors hover:bg-gray-50"
+        >
+          Descartar
+        </button>
+      </div>
+    </section>
+  }
+</div>

@@ -1,0 +1,81 @@
+<div class="flex flex-col gap-4">
+  <!-- Resumen de la carga semanal -->
+  <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Carga semanal</p>
+      <p class="text-xl font-semibold text-gray-900">{{ formatDuration(weeklyMinutes()) }}</p>
+    </div>
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Sesiones por semana</p>
+      <p class="text-xl font-semibold text-gray-900">{{ weeklySessions() }}</p>
+    </div>
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Días con actividad</p>
+      <p class="text-xl font-semibold text-gray-900">{{ activeDays() }} / 7</p>
+    </div>
+    <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-medium text-gray-500">Promedio diario</p>
+      <p class="text-xl font-semibold text-gray-900">{{ formatDuration(averageDailyMinutes()) }}</p>
+    </div>
+  </section>
+
+  <!-- Distribución por ubicación -->
+  <section class="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+      <svg lucideMapPin [size]="16" class="block text-brand-700"></svg>
+      Distribución por ubicación
+    </span>
+    @for (entry of minutesByLocation(); track entry[0]) {
+      <span class="rounded-full px-2.5 py-1 text-xs font-medium" [class]="locationChipClasses(entry[0])">
+        {{ locationLabel(entry[0]) }}: {{ formatDuration(entry[1]) }}
+      </span>
+    }
+  </section>
+
+  <!-- Plan día por día -->
+  <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    @for (day of weeklyPlan(); track day.weekday) {
+      <article
+        class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+        [class.opacity-70]="day.activities.length === 0"
+      >
+        <header class="flex items-center justify-between gap-2">
+          <h3 class="text-sm font-semibold text-gray-900">{{ weekdayName(day.weekday) }}</h3>
+          <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-500">
+            <svg lucideClock [size]="13" class="block"></svg>
+            {{ formatDuration(dayMinutes(day)) }}
+          </span>
+        </header>
+
+        @if (day.activities.length > 0) {
+          <ul class="flex flex-col gap-2">
+            @for (activity of day.activities; track activity.label) {
+              <li class="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2">
+                <div class="flex flex-col">
+                  <span class="text-sm font-medium text-gray-800">{{ activityLabel(activity) }}</span>
+                  <span class="text-xs text-gray-500">
+                    {{ formatDuration(activity.durationMin) }}
+                    @if (activity.sessions > 1) {
+                      · {{ activity.sessions }} turnos
+                    }
+                  </span>
+                </div>
+                <span
+                  class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  [class]="locationChipClasses(activity.location)"
+                >
+                  {{ locationLabel(activity.location) }}
+                </span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="inline-flex items-center gap-1.5 text-xs text-gray-500">
+            <svg lucideDumbbell [size]="13" class="block"></svg>
+            Día de descanso (o competencia según calendario).
+          </p>
+        }
+      </article>
+    }
+  </section>
+</div>
