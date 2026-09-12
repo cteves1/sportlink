@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "web-client": {
+    "sportlink": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -56,10 +56,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "web-client:build:production"
+              "buildTarget": "sportlink:build:production"
             },
             "development": {
-              "buildTarget": "web-client:build:development"
+              "buildTarget": "sportlink:build:development"
             }
           },
           "defaultConfiguration": "development"

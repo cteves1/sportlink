@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compila la app en modo producción y publica dist/web-client/browser en la rama
+# Compila la app en modo producción y publica dist/sportlink/browser en la rama
 # `gh-pages` del repo remoto (GitHub Pages), sin depender de paquetes npm externos
 # (usa git directo vía HTTPS/443, que es lo único que atraviesa firewalls estrictos).
 #
@@ -9,8 +9,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WEB_CLIENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$WEB_CLIENT_DIR/.." && pwd)"
-DIST_DIR="$WEB_CLIENT_DIR/dist/web-client/browser"
-BASE_HREF="${GH_PAGES_BASE_HREF:-/table-tennis-trainer/}"
+DIST_DIR="$WEB_CLIENT_DIR/dist/sportlink/browser"
+BASE_HREF="${GH_PAGES_BASE_HREF:-/sportlink/}"
 
 REMOTE_URL="$(git -C "$REPO_ROOT" remote get-url origin)"
 
