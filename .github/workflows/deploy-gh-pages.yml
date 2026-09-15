@@ -1,0 +1,61 @@
+name: Deploy to GitHub Pages
+
+# Compila la app de web-client/ y la publica en GitHub Pages en cada push a main.
+# Requiere que en Settings > Pages la opción "Source" esté en "GitHub Actions".
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un solo deploy a la vez; si llegan varios pushes, gana el último.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-client
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web-client/package-lock.json
+
+      - run: npm ci
+
+      # El sitio se sirve bajo https://<usuario>.github.io/<repo>/, así que el
+      # base-href tiene que incluir el nombre del repo.
+      - name: Build
+        run: npm run build -- --configuration production --base-href "/${{ github.event.repository.name }}/"
+
+      # GitHub Pages no reescribe rutas: sin este fallback, recargar una ruta
+      # interna del router (ej. /calendario) devolvería 404.
+      - name: Fallback SPA para el router
+        run: cp dist/sportlink/browser/index.html dist/sportlink/browser/404.html
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: web-client/dist/sportlink/browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
