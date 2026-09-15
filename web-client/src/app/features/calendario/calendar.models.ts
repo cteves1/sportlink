@@ -12,13 +12,19 @@ export interface MockPlayer {
   category: number;
 }
 
+/** Presencia real registrada por el entrenador el día del turno (`null` = sin registrar). */
+export type Presence = 'presente' | 'ausente' | null;
+
 /** Cupo de un jugador dentro de una sesión: puede cancelarse liberando el lugar. */
 export interface Attendance {
   id: number;
   playerId: number;
   playerName: string;
   category: number;
+  /** Estado de la reserva del cupo (lo gestiona el jugador). */
   status: AttendanceStatus;
+  /** Presencia registrada por el entrenador; opcional para tolerar datos ya persistidos. */
+  presence?: Presence;
 }
 
 /** Turno de entrenamiento en una fecha concreta. */

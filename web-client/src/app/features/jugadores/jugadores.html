@@ -115,7 +115,9 @@
                   {{ athlete.firstName }} {{ athlete.lastName }}
                 </a>
               } @else {
-                <p class="font-semibold text-gray-900">{{ athlete.firstName }} {{ athlete.lastName }}</p>
+                <p class="font-semibold text-gray-900">
+                  {{ athlete.firstName }} {{ athlete.lastName }}
+                </p>
               }
               <div class="mt-1 flex flex-wrap items-center gap-1.5">
                 <span
@@ -148,7 +150,9 @@
                   [class.bg-green-100]="athlete.welcomeFormCompleted"
                   [class.text-green-700]="athlete.welcomeFormCompleted"
                 >
-                  {{ athlete.welcomeFormCompleted ? 'Bienvenida completa' : 'Bienvenida pendiente' }}
+                  {{
+                    athlete.welcomeFormCompleted ? 'Bienvenida completa' : 'Bienvenida pendiente'
+                  }}
                 </span>
               </div>
             </div>
@@ -160,16 +164,22 @@
             </span>
           </div>
 
-          <p class="text-sm text-gray-500">Asistencia: <span class="font-medium text-gray-700">{{ athlete.attendance }}%</span></p>
+          <p class="text-sm text-gray-500">
+            Asistencia: <span class="font-medium text-gray-700">{{ athlete.attendance }}%</span>
+          </p>
 
           @if (expandedId() === athlete.id) {
-            <dl class="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+            <dl
+              class="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600"
+            >
               <dt class="font-medium text-gray-500">Fecha de nacimiento</dt>
               <dd class="col-start-1">{{ formatBirthDate(athlete.birthDate) }}</dd>
               <dt class="font-medium text-gray-500">Mano hábil</dt>
               <dd class="col-start-1 capitalize">{{ athlete.dominantHand }}</dd>
               <dt class="font-medium text-gray-500">Tipo de paleta</dt>
-              <dd class="col-start-1">{{ athlete.paddleGrip === 'clasica' ? 'Clásica' : 'Lapicero' }}</dd>
+              <dd class="col-start-1">
+                {{ athlete.paddleGrip === 'clasica' ? 'Clásica' : 'Lapicero' }}
+              </dd>
               <dt class="font-medium text-gray-500">Celular</dt>
               <dd class="col-start-1">{{ athlete.phone }}</dd>
               <dt class="font-medium text-gray-500">Usuario</dt>
@@ -179,13 +189,39 @@
             @if (athlete.welcomeForm; as welcomeForm) {
               <div class="flex flex-col gap-2 rounded-lg bg-brand-50 p-3 text-xs text-gray-700">
                 <p class="font-semibold text-brand-700">Formulario de bienvenida</p>
-                <p><span class="font-medium text-gray-500">Objetivo principal:</span> {{ mainGoalLabel(welcomeForm.mainGoal) }}</p>
-                <p><span class="font-medium text-gray-500">Meta a corto plazo:</span> {{ welcomeForm.shortTermGoal }}</p>
-                <p><span class="font-medium text-gray-500">Meta a largo plazo:</span> {{ welcomeForm.longTermGoal }}</p>
-                <p><span class="font-medium text-gray-500">Motivación:</span> {{ welcomeForm.motivation }}</p>
-                <p><span class="font-medium text-gray-500">Acompañamiento esperado:</span> {{ welcomeForm.coachSupport }}</p>
-                <p><span class="font-medium text-gray-500">Experiencia:</span> {{ yearsPlayingLabel(welcomeForm.yearsPlaying) }} · {{ welcomeForm.hasCompeted ? 'Con experiencia en torneos' : 'Sin experiencia en torneos' }}</p>
-                <p><span class="font-medium text-gray-500">Nivel autopercibido:</span> {{ selfLevelLabel(welcomeForm.selfPerceivedLevel) }}</p>
+                <p>
+                  <span class="font-medium text-gray-500">Objetivo principal:</span>
+                  {{ mainGoalLabel(welcomeForm.mainGoal) }}
+                </p>
+                <p>
+                  <span class="font-medium text-gray-500">Meta a corto plazo:</span>
+                  {{ welcomeForm.shortTermGoal }}
+                </p>
+                <p>
+                  <span class="font-medium text-gray-500">Meta a largo plazo:</span>
+                  {{ welcomeForm.longTermGoal }}
+                </p>
+                <p>
+                  <span class="font-medium text-gray-500">Motivación:</span>
+                  {{ welcomeForm.motivation }}
+                </p>
+                <p>
+                  <span class="font-medium text-gray-500">Acompañamiento esperado:</span>
+                  {{ welcomeForm.coachSupport }}
+                </p>
+                <p>
+                  <span class="font-medium text-gray-500">Experiencia:</span>
+                  {{ yearsPlayingLabel(welcomeForm.yearsPlaying) }} ·
+                  {{
+                    welcomeForm.hasCompeted
+                      ? 'Con experiencia en torneos'
+                      : 'Sin experiencia en torneos'
+                  }}
+                </p>
+                <p>
+                  <span class="font-medium text-gray-500">Nivel autopercibido:</span>
+                  {{ selfLevelLabel(welcomeForm.selfPerceivedLevel) }}
+                </p>
               </div>
             }
           }
@@ -246,176 +282,15 @@
       }
     </section>
   } @else {
-    <div class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+    <div
+      class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500"
+    >
       No se encontraron jugadores con los filtros aplicados.
     </div>
   }
 
-  <!-- Modal: Registro rápido de jugador -->
+  <!-- Modal: alta / edición de jugador (componente compartido con el Home) -->
   @if (isFormOpen()) {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
-        <div class="mb-4 flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-900">{{ isEditing() ? 'Editar Jugador' : 'Registrar Jugador' }}</h2>
-          <button type="button" (click)="closeForm()" class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-            <svg lucideX [size]="20" class="block"></svg>
-          </button>
-        </div>
-
-        @if (lastCreated(); as created) {
-          <div class="flex flex-col gap-4">
-            <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-              <p class="font-semibold">¡Jugador registrado con éxito!</p>
-              <p class="mt-2">Usuario: <span class="font-mono font-semibold">{{ created.username }}</span></p>
-              <p>Clave temporal: <span class="font-mono font-semibold">{{ created.tempPassword }}</span></p>
-            </div>
-
-            <div class="flex gap-3">
-              <button
-                type="button"
-                (click)="closeForm()"
-                class="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cerrar
-              </button>
-              <button
-                type="button"
-                (click)="sendWhatsapp(created)"
-                class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
-              >
-                <svg lucideMessageCircle [size]="16" class="block"></svg>
-                Enviar por WhatsApp ahora
-              </button>
-            </div>
-          </div>
-        } @else {
-        <form [formGroup]="form" (ngSubmit)="submitPlayer()" (keydown.enter)="blockEnterSubmit($event)" class="flex flex-col gap-4">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label for="firstName" class="mb-1 block text-sm font-medium text-gray-700">Nombre</label>
-              <input
-                id="firstName"
-                type="text"
-                formControlName="firstName"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-              />
-              @if (form.controls.firstName.invalid && form.controls.firstName.touched) {
-                <p class="mt-1 text-xs text-red-600">Requerido.</p>
-              }
-            </div>
-
-            <div>
-              <label for="lastName" class="mb-1 block text-sm font-medium text-gray-700">Apellido</label>
-              <input
-                id="lastName"
-                type="text"
-                formControlName="lastName"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-              />
-              @if (form.controls.lastName.invalid && form.controls.lastName.touched) {
-                <p class="mt-1 text-xs text-red-600">Requerido.</p>
-              }
-            </div>
-          </div>
-
-          <div>
-            <label for="birthDate" class="mb-1 block text-sm font-medium text-gray-700">Fecha de Nacimiento</label>
-            <input
-              id="birthDate"
-              type="date"
-              formControlName="birthDate"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-            />
-            @if (form.controls.birthDate.invalid && form.controls.birthDate.touched) {
-              <p class="mt-1 text-xs text-red-600">Requerido.</p>
-            }
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label for="phone" class="mb-1 block text-sm font-medium text-gray-700">Celular</label>
-              <input
-                id="phone"
-                type="tel"
-                formControlName="phone"
-                placeholder="+54 9 11 1234-5678"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-              />
-              @if (form.controls.phone.invalid && form.controls.phone.touched) {
-                <p class="mt-1 text-xs text-red-600">Ingresa un celular válido (con código de país).</p>
-              }
-            </div>
-
-            <div>
-              <label for="playerType" class="mb-1 block text-sm font-medium text-gray-700">Tipo de Jugador</label>
-              <select
-                id="playerType"
-                formControlName="playerType"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-              >
-                <option value="regular">Regular</option>
-                <option value="invitado">Invitado</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label for="category" class="mb-1 block text-sm font-medium text-gray-700">Categoría</label>
-            <select
-              id="category"
-              formControlName="category"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-            >
-              @for (category of categories; track category) {
-                <option [value]="category">Categoría {{ category }}</option>
-              }
-            </select>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label for="dominantHand" class="mb-1 block text-sm font-medium text-gray-700">Mano Hábil</label>
-              <select
-                id="dominantHand"
-                formControlName="dominantHand"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-              >
-                <option value="derecha">Derecha</option>
-                <option value="izquierda">Izquierda</option>
-              </select>
-            </div>
-
-            <div>
-              <label for="paddleGrip" class="mb-1 block text-sm font-medium text-gray-700">Tipo de Paleta</label>
-              <select
-                id="paddleGrip"
-                formControlName="paddleGrip"
-                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-              >
-                <option value="clasica">Clásica</option>
-                <option value="lapicero">Lapicero</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="mt-2 flex gap-3">
-            <button
-              type="button"
-              (click)="closeForm()"
-              class="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              class="flex-1 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-            >
-              {{ isEditing() ? 'Guardar Cambios' : 'Guardar' }}
-            </button>
-          </div>
-        </form>
-        }
-      </div>
-    </div>
+    <app-player-form-modal [athlete]="editingAthlete()" (closed)="closeForm()" />
   }
 </div>

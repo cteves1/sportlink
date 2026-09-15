@@ -1,5 +1,4 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   LucideChevronDown,
@@ -9,9 +8,15 @@ import {
   LucidePencil,
   LucideSearch,
   LucideUserPlus,
-  LucideX,
 } from '@lucide/angular';
-import { Athlete, Category, PlayersService, WelcomeFormAnswers } from '../../core/players/players.service';
+import {
+  Athlete,
+  Category,
+  PlayersService,
+  WelcomeFormAnswers,
+} from '../../core/players/players.service';
+import { buildWhatsappLink, sendWhatsapp } from '../../core/players/whatsapp';
+import { PlayerFormModal } from '../../shared/player-form-modal/player-form-modal';
 
 export type { Athlete, Category };
 
@@ -21,11 +26,10 @@ type StatusFilter = 'todos' | 'activo' | 'inactivo';
   selector: 'app-jugadores',
   standalone: true,
   imports: [
-    ReactiveFormsModule,
     RouterLink,
+    PlayerFormModal,
     LucideSearch,
     LucideUserPlus,
-    LucideX,
     LucideChevronDown,
     LucideChevronUp,
     LucideClipboardList,
@@ -35,10 +39,9 @@ type StatusFilter = 'todos' | 'activo' | 'inactivo';
   templateUrl: './jugadores.html',
 })
 export class Jugadores {
-  private readonly fb = inject(FormBuilder);
   private readonly playersService = inject(PlayersService);
 
-  /** Categorías disponibles para los chips de filtro y el select del formulario, de élite (1) a novato (8). */
+  /** Categorías disponibles para los chips de filtro, de élite (1) a novato (8). */
   protected readonly categories: Category[] = [1, 2, 3, 4, 5, 6, 7, 8];
 
   protected readonly athletes = this.playersService.athletes;
@@ -48,9 +51,14 @@ export class Jugadores {
   protected readonly statusFilter = signal<StatusFilter>('todos');
   protected readonly expandedId = signal<number | null>(null);
   protected readonly isFormOpen = signal(false);
-  protected readonly lastCreated = signal<Athlete | null>(null);
   protected readonly editingAthleteId = signal<number | null>(null);
-  protected readonly isEditing = computed(() => this.editingAthleteId() !== null);
+
+  /** Jugador que el modal debe precargar; `null` significa alta de un jugador nuevo. */
+  protected readonly editingAthlete = computed(() => {
+    const id = this.editingAthleteId();
+    if (id === null) return null;
+    return this.athletes().find((athlete) => athlete.id === id) ?? null;
+  });
 
   protected readonly filteredAthletes = computed(() => {
     const category = this.selectedCategory();
@@ -68,17 +76,6 @@ export class Jugadores {
 
   protected readonly resultsCount = computed(() => this.filteredAthletes().length);
   protected readonly totalCount = computed(() => this.athletes().length);
-
-  protected readonly form = this.fb.nonNullable.group({
-    firstName: ['', Validators.required],
-    lastName: ['', Validators.required],
-    birthDate: ['', Validators.required],
-    category: [8, Validators.required],
-    phone: ['', [Validators.required, Validators.pattern(/^\+?[0-9\s-]{8,}$/)]],
-    playerType: ['regular' as Athlete['playerType'], Validators.required],
-    dominantHand: ['derecha' as Athlete['dominantHand'], Validators.required],
-    paddleGrip: ['clasica' as Athlete['paddleGrip'], Validators.required],
-  });
 
   protected onSearch(value: string): void {
     this.searchTerm.set(value);
@@ -102,116 +99,26 @@ export class Jugadores {
 
   protected openForm(): void {
     this.editingAthleteId.set(null);
-    this.lastCreated.set(null);
     this.isFormOpen.set(true);
   }
 
   /** Abre el mismo modal precargado con los datos del jugador, para editarlo sin regenerar usuario/clave. */
   protected openEditForm(athlete: Athlete): void {
     this.editingAthleteId.set(athlete.id);
-    this.lastCreated.set(null);
-    this.form.reset({
-      firstName: athlete.firstName,
-      lastName: athlete.lastName,
-      birthDate: this.toDateInputValue(athlete.birthDate),
-      category: athlete.category,
-      phone: athlete.phone,
-      playerType: athlete.playerType,
-      dominantHand: athlete.dominantHand,
-      paddleGrip: athlete.paddleGrip,
-    });
     this.isFormOpen.set(true);
   }
 
   protected closeForm(): void {
     this.isFormOpen.set(false);
-    this.lastCreated.set(null);
     this.editingAthleteId.set(null);
-    this.form.reset({
-      firstName: '',
-      lastName: '',
-      birthDate: '',
-      category: 8,
-      phone: '',
-      playerType: 'regular',
-      dominantHand: 'derecha',
-      paddleGrip: 'clasica',
-    });
   }
 
-  /** Evita que Enter dispare el envío del formulario: solo se guarda con clic explícito en "Guardar". */
-  protected blockEnterSubmit(event: Event): void {
-    const target = event.target as HTMLElement;
-    if (target.tagName !== 'BUTTON') {
-      event.preventDefault();
-    }
-  }
-
-  protected submitPlayer(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
-
-    const value = this.form.getRawValue();
-    const payload = {
-      firstName: value.firstName,
-      lastName: value.lastName,
-      category: value.category as Category,
-      phone: value.phone,
-      playerType: value.playerType,
-      birthDate: new Date(value.birthDate),
-      dominantHand: value.dominantHand,
-      paddleGrip: value.paddleGrip,
-    };
-
-    const editingId = this.editingAthleteId();
-    if (editingId !== null) {
-      this.playersService.updateAthlete(editingId, payload);
-      this.closeForm();
-      return;
-    }
-
-    const newAthlete = this.playersService.addAthlete(payload);
-    this.lastCreated.set(newAthlete);
-    this.form.reset({
-      firstName: '',
-      lastName: '',
-      birthDate: '',
-      category: 8,
-      phone: '',
-      playerType: 'regular',
-      dominantHand: 'derecha',
-      paddleGrip: 'clasica',
-    });
-  }
-
-  /** Formatea una fecha a 'yyyy-MM-dd' para precargar un <input type="date">. */
-  private toDateInputValue(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  /**
-   * Construye el enlace de WhatsApp Web API (https://wa.me/{telefono}?text={mensaje}).
-   * 1) El teléfono se limpia a solo dígitos (wa.me no acepta espacios/guiones/"+").
-   * 2) El mensaje se arma con los datos del jugador y se codifica con encodeURIComponent
-   *    para que espacios, tildes y símbolos viajen correctamente en la URL.
-   */
   protected buildWhatsappLink(athlete: Athlete): string {
-    const digitsOnly = athlete.phone.replace(/[^0-9]/g, '');
-    const message =
-      `¡Hola ${athlete.firstName}! El entrenador te ha dado de alta en SportLink. ` +
-      `Tu usuario es: ${athlete.username} y tu clave temporal es: ${athlete.tempPassword}. ` +
-      `Ingresa en: https://sportlink.app para gestionar tus asistencias.`;
-
-    return `https://wa.me/${digitsOnly}?text=${encodeURIComponent(message)}`;
+    return buildWhatsappLink(athlete);
   }
 
   protected sendWhatsapp(athlete: Athlete): void {
-    window.open(this.buildWhatsappLink(athlete), '_blank', 'noopener');
+    sendWhatsapp(athlete);
   }
 
   /** Los atletas de categoría 1 tienen ficha de seguimiento de alto rendimiento. */
@@ -228,7 +135,11 @@ export class Jugadores {
   }
 
   protected formatBirthDate(date: Date): string {
-    return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+    return new Intl.DateTimeFormat('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(date);
   }
 
   private static readonly MAIN_GOAL_LABELS: Record<WelcomeFormAnswers['mainGoal'], string> = {
@@ -239,14 +150,18 @@ export class Jugadores {
     otro: 'Otro',
   };
 
-  private static readonly YEARS_PLAYING_LABELS: Record<WelcomeFormAnswers['yearsPlaying'], string> = {
-    'menos-de-1': 'Menos de 1 año',
-    '1-a-3': 'Entre 1 y 3 años',
-    '3-a-5': 'Entre 3 y 5 años',
-    'mas-de-5': 'Más de 5 años',
-  };
+  private static readonly YEARS_PLAYING_LABELS: Record<WelcomeFormAnswers['yearsPlaying'], string> =
+    {
+      'menos-de-1': 'Menos de 1 año',
+      '1-a-3': 'Entre 1 y 3 años',
+      '3-a-5': 'Entre 3 y 5 años',
+      'mas-de-5': 'Más de 5 años',
+    };
 
-  private static readonly SELF_LEVEL_LABELS: Record<WelcomeFormAnswers['selfPerceivedLevel'], string> = {
+  private static readonly SELF_LEVEL_LABELS: Record<
+    WelcomeFormAnswers['selfPerceivedLevel'],
+    string
+  > = {
     principiante: 'Principiante',
     intermedio: 'Intermedio',
     avanzado: 'Avanzado',

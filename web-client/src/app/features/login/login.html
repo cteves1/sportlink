@@ -1,5 +1,7 @@
-<div class="grid min-h-screen grid-cols-1 md:grid-cols-2">
-  <div class="login-hero relative hidden flex-col items-center justify-center overflow-hidden p-12 text-white md:flex">
+<div class="grid h-dvh grid-cols-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1">
+  <div
+    class="login-hero relative flex min-h-0 flex-col items-center justify-center overflow-hidden p-6 text-white md:p-12"
+  >
     <svg
       class="login-lines pointer-events-none absolute inset-0 h-full w-full"
       viewBox="0 0 400 800"
@@ -12,25 +14,25 @@
       <line x1="-50" y1="720" x2="450" y2="620" />
     </svg>
 
-    <div class="relative z-10 flex max-w-md flex-col items-center gap-6 text-center">
-      <h1 class="text-6xl font-extrabold leading-tight tracking-tight text-white drop-shadow-sm">
+    <div class="relative z-10 flex max-w-md flex-col items-center gap-4 text-center md:gap-6">
+      <h1
+        class="text-4xl font-extrabold leading-tight tracking-tight text-white drop-shadow-sm md:text-6xl"
+      >
         SportLink
       </h1>
 
       <span
-        class="rounded-full border border-white/25 bg-white/10 px-5 py-2 text-sm font-medium tracking-wide text-green-50 backdrop-blur-sm"
+        class="rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-medium tracking-wide text-green-50 backdrop-blur-sm md:px-5 md:py-2 md:text-sm"
       >
         El link entre tu entrenamiento y tus resultados
       </span>
     </div>
   </div>
 
-  <div class="flex flex-col items-center justify-center bg-white p-8">
+  <div
+    class="flex min-h-0 flex-col items-center justify-center overflow-y-auto bg-white p-6 md:p-8"
+  >
     <div class="w-full max-w-sm">
-      <div class="mb-8 text-center md:hidden">
-        <h1 class="text-2xl font-bold text-brand-700">SportLink</h1>
-      </div>
-
       <div class="rounded-xl border border-gray-200 p-6 shadow-sm">
         <h2 class="mb-6 text-2xl font-semibold text-gray-900">Iniciar sesión</h2>
 
@@ -51,7 +53,9 @@
           </div>
 
           <div>
-            <label for="password" class="mb-1 block text-sm font-medium text-gray-700">Contraseña</label>
+            <label for="password" class="mb-1 block text-sm font-medium text-gray-700"
+              >Contraseña</label
+            >
             <input
               id="password"
               type="password"
@@ -61,7 +65,9 @@
               placeholder="••••••••"
             />
             @if (form.controls.password.invalid && form.controls.password.touched) {
-              <p class="mt-1 text-xs text-red-600">La contraseña debe tener al menos 4 caracteres.</p>
+              <p class="mt-1 text-xs text-red-600">
+                La contraseña debe tener al menos 4 caracteres.
+              </p>
             }
           </div>
 

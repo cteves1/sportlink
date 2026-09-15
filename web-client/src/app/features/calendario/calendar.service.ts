@@ -1,6 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { addDays, atMidnight, dateKey } from '../../core/date/calendar-dates';
-import { Attendance, MockPlayer, TrainingSession, UserRole } from './calendar.models';
+import { Attendance, MockPlayer, Presence, TrainingSession, UserRole } from './calendar.models';
 
 export { dateKey };
 
@@ -48,7 +48,11 @@ function buildMockSessions(): TrainingSession[] {
       attendanceOf(4),
     ]),
     session(-1, 'Turno Mañana', '09:00', '11:00', [attendanceOf(5), attendanceOf(6)]),
-    session(0, 'Turno Mañana', '09:00', '11:00', [attendanceOf(1), attendanceOf(4), attendanceOf(7)]),
+    session(0, 'Turno Mañana', '09:00', '11:00', [
+      attendanceOf(1),
+      attendanceOf(4),
+      attendanceOf(7),
+    ]),
     session(0, 'Turno Tarde', '16:00', '18:00', [
       attendanceOf(2),
       attendanceOf(3),
@@ -56,7 +60,11 @@ function buildMockSessions(): TrainingSession[] {
       attendanceOf(6),
       attendanceOf(8, 'ausente'),
     ]),
-    session(2, 'Turno Noche', '19:00', '21:00', [attendanceOf(1), attendanceOf(6), attendanceOf(7)]),
+    session(2, 'Turno Noche', '19:00', '21:00', [
+      attendanceOf(1),
+      attendanceOf(6),
+      attendanceOf(7),
+    ]),
     session(4, 'Turno Tarde', '16:00', '18:00', [
       attendanceOf(2),
       attendanceOf(4),
@@ -66,11 +74,32 @@ function buildMockSessions(): TrainingSession[] {
       attendanceOf(8),
     ]),
     session(6, 'Turno Mañana', '09:00', '11:00', [attendanceOf(3), attendanceOf(8)]),
-    session(6, 'Turno Noche', '19:00', '21:00', [attendanceOf(1), attendanceOf(2), attendanceOf(3)]),
-    session(9, 'Turno Tarde', '16:00', '18:00', [attendanceOf(4), attendanceOf(5), attendanceOf(1)]),
-    session(11, 'Turno Mañana', '09:00', '11:00', [attendanceOf(6), attendanceOf(7), attendanceOf(2, 'ausente')]),
-    session(13, 'Turno Noche', '19:00', '21:00', [attendanceOf(8), attendanceOf(3), attendanceOf(4)]),
-    session(16, 'Turno Tarde', '16:00', '18:00', [attendanceOf(1), attendanceOf(5), attendanceOf(6), attendanceOf(7)]),
+    session(6, 'Turno Noche', '19:00', '21:00', [
+      attendanceOf(1),
+      attendanceOf(2),
+      attendanceOf(3),
+    ]),
+    session(9, 'Turno Tarde', '16:00', '18:00', [
+      attendanceOf(4),
+      attendanceOf(5),
+      attendanceOf(1),
+    ]),
+    session(11, 'Turno Mañana', '09:00', '11:00', [
+      attendanceOf(6),
+      attendanceOf(7),
+      attendanceOf(2, 'ausente'),
+    ]),
+    session(13, 'Turno Noche', '19:00', '21:00', [
+      attendanceOf(8),
+      attendanceOf(3),
+      attendanceOf(4),
+    ]),
+    session(16, 'Turno Tarde', '16:00', '18:00', [
+      attendanceOf(1),
+      attendanceOf(5),
+      attendanceOf(6),
+      attendanceOf(7),
+    ]),
   ];
 }
 
@@ -110,6 +139,32 @@ export class CalendarService {
 
   confirmedCount(session: TrainingSession): number {
     return session.attendances.filter((a) => a.status === 'confirmado').length;
+  }
+
+  /** Turnos programados para una fecha concreta. */
+  sessionsForDate(date: Date): TrainingSession[] {
+    return this.sessionsByDateKey().get(dateKey(date)) ?? [];
+  }
+
+  presentCount(session: TrainingSession): number {
+    return session.attendances.filter((a) => a.presence === 'presente').length;
+  }
+
+  /** Registra (o limpia, con `null`) la presencia real de un jugador en un turno. */
+  setPresence(sessionId: number, attendanceId: number, presence: Presence): void {
+    this.sessions.update((sessions) =>
+      sessions.map((session) =>
+        session.id !== sessionId
+          ? session
+          : {
+              ...session,
+              attendances: session.attendances.map((attendance) =>
+                attendance.id === attendanceId ? { ...attendance, presence } : attendance,
+              ),
+            },
+      ),
+    );
+    this.persist();
   }
 
   attendanceFor(session: TrainingSession, playerId: number): Attendance | undefined {

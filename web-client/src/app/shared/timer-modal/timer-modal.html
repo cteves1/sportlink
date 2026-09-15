@@ -1,0 +1,147 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4">
+  <div class="my-auto w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="inline-flex items-center gap-2 text-lg font-semibold text-gray-900">
+        <svg lucideTimer [size]="20" class="block text-brand-700"></svg>
+        Cronómetro
+      </h2>
+      <button
+        type="button"
+        (click)="close()"
+        class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        aria-label="Cerrar cronómetro"
+      >
+        <svg lucideX [size]="20" class="block"></svg>
+      </button>
+    </div>
+
+    <!-- Selector de modo -->
+    <div class="mb-5 inline-flex w-full items-center gap-1 rounded-full bg-gray-100 p-1">
+      <button
+        type="button"
+        (click)="setMode('cronometro')"
+        class="flex-1 rounded-full px-3 py-1.5 text-xs font-medium"
+        [class.bg-white]="mode() === 'cronometro'"
+        [class.shadow-sm]="mode() === 'cronometro'"
+        [class.text-gray-900]="mode() === 'cronometro'"
+        [class.text-gray-500]="mode() !== 'cronometro'"
+      >
+        Cronómetro
+      </button>
+      <button
+        type="button"
+        (click)="setMode('temporizador')"
+        class="flex-1 rounded-full px-3 py-1.5 text-xs font-medium"
+        [class.bg-white]="mode() === 'temporizador'"
+        [class.shadow-sm]="mode() === 'temporizador'"
+        [class.text-gray-900]="mode() === 'temporizador'"
+        [class.text-gray-500]="mode() !== 'temporizador'"
+      >
+        Temporizador
+      </button>
+    </div>
+
+    <!-- Display -->
+    <p
+      class="text-center font-mono text-5xl font-bold tabular-nums transition-colors"
+      [class.text-gray-900]="!finished()"
+      [class.text-red-600]="finished()"
+    >
+      {{ display() }}
+    </p>
+
+    @if (finished()) {
+      <p class="mt-2 text-center text-sm font-semibold text-red-600">¡Tiempo cumplido!</p>
+    }
+
+    <!-- Configuración de la cuenta regresiva -->
+    @if (mode() === 'temporizador') {
+      <div class="mt-5 grid grid-cols-2 gap-3">
+        <div>
+          <label for="presetMinutes" class="mb-1 block text-sm font-medium text-gray-700"
+            >Minutos</label
+          >
+          <input
+            id="presetMinutes"
+            type="number"
+            min="0"
+            max="599"
+            [value]="presetMinutes()"
+            (input)="setPresetMinutes($any($event.target).value)"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          />
+        </div>
+        <div>
+          <label for="presetSeconds" class="mb-1 block text-sm font-medium text-gray-700"
+            >Segundos</label
+          >
+          <input
+            id="presetSeconds"
+            type="number"
+            min="0"
+            max="59"
+            [value]="presetSeconds()"
+            (input)="setPresetSeconds($any($event.target).value)"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          />
+        </div>
+      </div>
+    }
+
+    <!-- Controles -->
+    <div class="mt-5 flex gap-3">
+      <button
+        type="button"
+        (click)="toggle()"
+        [disabled]="!canStart()"
+        class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        @if (running()) {
+          <svg lucidePause [size]="18" class="block"></svg>
+          Pausar
+        } @else {
+          <svg lucidePlay [size]="18" class="block"></svg>
+          {{ isPristine() ? 'Iniciar' : 'Reanudar' }}
+        }
+      </button>
+
+      @if (mode() === 'cronometro') {
+        <button
+          type="button"
+          (click)="addLap()"
+          [disabled]="isPristine()"
+          class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <svg lucideFlag [size]="18" class="block"></svg>
+          Vuelta
+        </button>
+      }
+
+      <button
+        type="button"
+        (click)="reset()"
+        class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      >
+        <svg lucideRotateCcw [size]="18" class="block"></svg>
+        Reiniciar
+      </button>
+    </div>
+
+    <!-- Vueltas -->
+    @if (laps().length > 0) {
+      <ul
+        class="mt-5 flex max-h-48 flex-col divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200"
+      >
+        @for (lap of laps(); track lap.index) {
+          <li class="flex items-center justify-between px-3 py-2 text-sm">
+            <span class="font-medium text-gray-700">Vuelta {{ lap.index }}</span>
+            <span class="font-mono tabular-nums text-gray-500">+{{ format(lap.split) }}</span>
+            <span class="font-mono font-semibold tabular-nums text-gray-900">{{
+              format(lap.total)
+            }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

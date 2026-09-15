@@ -1,16 +1,53 @@
 <header class="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
-  <span class="text-lg font-semibold text-gray-900 md:hidden">🏓 SportLink</span>
+  <div class="flex items-center gap-2">
+    <button
+      type="button"
+      (click)="toggleMobileMenu.emit()"
+      class="inline-flex items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100 md:hidden"
+      aria-label="Abrir menú"
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        class="block"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+        />
+      </svg>
+    </button>
 
-  <button
-    type="button"
-    (click)="toggleSidebar.emit()"
-    class="hidden items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100 md:inline-flex"
-    aria-label="Colapsar menú"
-  >
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="block">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-    </svg>
-  </button>
+    <button
+      type="button"
+      (click)="toggleSidebar.emit()"
+      class="hidden items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100 md:inline-flex"
+      aria-label="Colapsar menú"
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        class="block"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+        />
+      </svg>
+    </button>
+
+    <span class="text-lg font-semibold text-gray-900 md:hidden">🏓 SportLink</span>
+  </div>
 
   <button
     type="button"
@@ -18,7 +55,15 @@
     class="inline-flex items-center justify-center rounded-md p-2 text-gray-500 hover:bg-gray-100"
     aria-label="Cerrar sesión"
   >
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="block">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      class="block"
+    >
       <path
         stroke-linecap="round"
         stroke-linejoin="round"

@@ -21,8 +21,11 @@ import {
   LucideUserPlus,
   LucideUsers,
 } from '@lucide/angular';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { Athlete as PlayerAthlete, PlayersService } from '../../core/players/players.service';
+import { PlayerFormModal } from '../../shared/player-form-modal/player-form-modal';
+import { TimerModal } from '../../shared/timer-modal/timer-modal';
 
 interface Athlete {
   id: number;
@@ -75,6 +78,8 @@ interface CoachNote {
   selector: 'app-home',
   standalone: true,
   imports: [
+    PlayerFormModal,
+    TimerModal,
     LucideUsers,
     LucidePercent,
     LucideTableProperties,
@@ -101,6 +106,7 @@ interface CoachNote {
 export class Home {
   private readonly authService = inject(AuthService);
   private readonly playersService = inject(PlayersService);
+  private readonly router = inject(Router);
 
   private readonly coachName = 'Entrenador';
 
@@ -187,6 +193,34 @@ export class Home {
     );
   }
 
+  // ------------------------------------------------------------------
+  // Acciones rápidas
+  // ------------------------------------------------------------------
+
+  protected readonly playerFormOpen = signal(false);
+  protected readonly timerOpen = signal(false);
+
+  /** Lleva al calendario abriendo directamente el registro de asistencia de hoy. */
+  protected goToAttendance(): void {
+    void this.router.navigate(['/calendario'], { queryParams: { asistencia: 'hoy' } });
+  }
+
+  protected openPlayerForm(): void {
+    this.playerFormOpen.set(true);
+  }
+
+  protected closePlayerForm(): void {
+    this.playerFormOpen.set(false);
+  }
+
+  protected openTimer(): void {
+    this.timerOpen.set(true);
+  }
+
+  protected closeTimer(): void {
+    this.timerOpen.set(false);
+  }
+
   protected statusLabel(status: Athlete['status']): string {
     switch (status) {
       case 'presente':
@@ -203,7 +237,8 @@ export class Home {
   // ------------------------------------------------------------------
 
   protected readonly playerGreeting = computed(() => {
-    const firstName = this.currentAthlete()?.firstName ?? this.authService.user()?.name.split(' ')[0] ?? '';
+    const firstName =
+      this.currentAthlete()?.firstName ?? this.authService.user()?.name.split(' ')[0] ?? '';
     const hour = this.today.getHours();
     if (hour < 6) return `Buenas noches, ${firstName}`;
     if (hour < 12) return `¡Hola, ${firstName}!`;
@@ -243,7 +278,9 @@ export class Home {
   });
 
   protected readonly formattedNoteDate = computed(() =>
-    new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(this.coachNote().updatedAt),
+    new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(
+      this.coachNote().updatedAt,
+    ),
   );
 
   protected readonly formattedNextTrainingDate = computed(() =>

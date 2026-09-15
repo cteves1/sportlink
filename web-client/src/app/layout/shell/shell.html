@@ -1,8 +1,16 @@
 <div class="flex h-screen bg-gray-50">
-  <app-sidebar [collapsed]="sidebarCollapsed()" />
+  @if (mobileMenuOpen()) {
+    <div class="fixed inset-0 z-40 bg-black/40 md:hidden" (click)="closeMobileMenu()"></div>
+  }
+
+  <app-sidebar
+    [collapsed]="sidebarCollapsed()"
+    [mobileOpen]="mobileMenuOpen()"
+    (navigate)="closeMobileMenu()"
+  />
 
   <div class="flex flex-1 flex-col overflow-hidden">
-    <app-navbar-top (toggleSidebar)="toggleSidebar()" />
+    <app-navbar-top (toggleSidebar)="toggleSidebar()" (toggleMobileMenu)="toggleMobileMenu()" />
 
     <main class="flex-1 overflow-y-auto p-6">
       <router-outlet />

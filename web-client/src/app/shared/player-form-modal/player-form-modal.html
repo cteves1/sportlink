@@ -1,0 +1,195 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4">
+  <div class="my-auto w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-gray-900">
+        {{ isEditing() ? 'Editar Jugador' : 'Registrar Jugador' }}
+      </h2>
+      <button
+        type="button"
+        (click)="close()"
+        class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+      >
+        <svg lucideX [size]="20" class="block"></svg>
+      </button>
+    </div>
+
+    @if (lastCreated(); as created) {
+      <div class="flex flex-col gap-4">
+        <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+          <p class="font-semibold">¡Jugador registrado con éxito!</p>
+          <p class="mt-2">
+            Usuario: <span class="font-mono font-semibold">{{ created.username }}</span>
+          </p>
+          <p>
+            Clave temporal: <span class="font-mono font-semibold">{{ created.tempPassword }}</span>
+          </p>
+        </div>
+
+        <div class="flex gap-3">
+          <button
+            type="button"
+            (click)="close()"
+            class="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cerrar
+          </button>
+          <button
+            type="button"
+            (click)="sendWhatsapp(created)"
+            class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+          >
+            <svg lucideMessageCircle [size]="16" class="block"></svg>
+            Enviar por WhatsApp ahora
+          </button>
+        </div>
+      </div>
+    } @else {
+      <form
+        [formGroup]="form"
+        (ngSubmit)="submitPlayer()"
+        (keydown.enter)="blockEnterSubmit($event)"
+        class="flex flex-col gap-4"
+      >
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="firstName" class="mb-1 block text-sm font-medium text-gray-700"
+              >Nombre</label
+            >
+            <input
+              id="firstName"
+              type="text"
+              formControlName="firstName"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            />
+            @if (form.controls.firstName.invalid && form.controls.firstName.touched) {
+              <p class="mt-1 text-xs text-red-600">Requerido.</p>
+            }
+          </div>
+
+          <div>
+            <label for="lastName" class="mb-1 block text-sm font-medium text-gray-700"
+              >Apellido</label
+            >
+            <input
+              id="lastName"
+              type="text"
+              formControlName="lastName"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            />
+            @if (form.controls.lastName.invalid && form.controls.lastName.touched) {
+              <p class="mt-1 text-xs text-red-600">Requerido.</p>
+            }
+          </div>
+        </div>
+
+        <div>
+          <label for="birthDate" class="mb-1 block text-sm font-medium text-gray-700"
+            >Fecha de Nacimiento</label
+          >
+          <input
+            id="birthDate"
+            type="date"
+            formControlName="birthDate"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          />
+          @if (form.controls.birthDate.invalid && form.controls.birthDate.touched) {
+            <p class="mt-1 text-xs text-red-600">Requerido.</p>
+          }
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="phone" class="mb-1 block text-sm font-medium text-gray-700">Celular</label>
+            <input
+              id="phone"
+              type="tel"
+              formControlName="phone"
+              placeholder="+54 9 11 1234-5678"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            />
+            @if (form.controls.phone.invalid && form.controls.phone.touched) {
+              <p class="mt-1 text-xs text-red-600">
+                Ingresa un celular válido (con código de país).
+              </p>
+            }
+          </div>
+
+          <div>
+            <label for="playerType" class="mb-1 block text-sm font-medium text-gray-700"
+              >Tipo de Jugador</label
+            >
+            <select
+              id="playerType"
+              formControlName="playerType"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            >
+              <option value="regular">Regular</option>
+              <option value="invitado">Invitado</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="category" class="mb-1 block text-sm font-medium text-gray-700"
+            >Categoría</label
+          >
+          <select
+            id="category"
+            formControlName="category"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          >
+            @for (category of categories; track category) {
+              <option [value]="category">Categoría {{ category }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="dominantHand" class="mb-1 block text-sm font-medium text-gray-700"
+              >Mano Hábil</label
+            >
+            <select
+              id="dominantHand"
+              formControlName="dominantHand"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            >
+              <option value="derecha">Derecha</option>
+              <option value="izquierda">Izquierda</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="paddleGrip" class="mb-1 block text-sm font-medium text-gray-700"
+              >Tipo de Paleta</label
+            >
+            <select
+              id="paddleGrip"
+              formControlName="paddleGrip"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            >
+              <option value="clasica">Clásica</option>
+              <option value="lapicero">Lapicero</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-2 flex gap-3">
+          <button
+            type="button"
+            (click)="close()"
+            class="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="flex-1 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            {{ isEditing() ? 'Guardar Cambios' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    }
+  </div>
+</div>

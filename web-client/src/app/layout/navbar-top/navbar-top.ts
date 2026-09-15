@@ -13,6 +13,8 @@ export class NavbarTop {
 
   readonly toggleSidebar = output<void>();
 
+  readonly toggleMobileMenu = output<void>();
+
   protected logout(): void {
     this.authService.logout();
     void this.router.navigate(['/login']);

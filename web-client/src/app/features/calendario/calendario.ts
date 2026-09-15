@@ -1,12 +1,15 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import {
   LucideCalendarDays,
+  LucideCheck,
   LucideChevronLeft,
   LucideChevronRight,
   LucideCircleAlert,
   LucideCircleCheck,
   LucideCircleX,
+  LucideClipboardCheck,
   LucideClock,
   LucideLayoutGrid,
   LucideList,
@@ -16,7 +19,7 @@ import {
   LucideX,
 } from '@lucide/angular';
 import { CalendarService } from './calendar.service';
-import { TrainingSession, UserRole } from './calendar.models';
+import { Attendance, Presence, TrainingSession, UserRole } from './calendar.models';
 import { AuthService } from '../../core/auth/auth.service';
 import {
   WEEKDAY_LABELS,
@@ -43,11 +46,13 @@ interface CalendarCell {
   imports: [
     FormsModule,
     LucideCalendarDays,
+    LucideCheck,
     LucideChevronLeft,
     LucideChevronRight,
     LucideCircleAlert,
     LucideCircleCheck,
     LucideCircleX,
+    LucideClipboardCheck,
     LucideClock,
     LucideLayoutGrid,
     LucideList,
@@ -58,9 +63,10 @@ interface CalendarCell {
   ],
   templateUrl: './calendario.html',
 })
-export class Calendario {
+export class Calendario implements OnInit {
   protected readonly calendarService = inject(CalendarService);
   private readonly authService = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly weekdayLabels = WEEKDAY_LABELS;
 
@@ -84,6 +90,13 @@ export class Calendario {
     });
   }
 
+  /** La acción rápida "Registrar Asistencia" del Home entra con ?asistencia=hoy. */
+  ngOnInit(): void {
+    if (this.route.snapshot.queryParamMap.get('asistencia') === 'hoy') {
+      this.openTodayAttendance();
+    }
+  }
+
   protected readonly viewMode = signal<ViewMode>('mes');
   protected readonly cursorDate = signal<Date>(atMidnight(new Date()));
   protected readonly selectedDate = signal<Date | null>(null);
@@ -94,7 +107,11 @@ export class Calendario {
   private readonly today = atMidnight(new Date());
 
   protected readonly monthLabel = computed(() =>
-    capitalize(new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(this.cursorDate())),
+    capitalize(
+      new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(
+        this.cursorDate(),
+      ),
+    ),
   );
 
   protected readonly weekRangeLabel = computed(() => {
@@ -158,12 +175,85 @@ export class Calendario {
     return this.calendarService
       .sessions()
       .filter((session) => session.date.getTime() >= this.today.getTime())
-      .map((session) => ({ session, attendance: this.calendarService.attendanceFor(session, playerId) }))
-      .filter((entry): entry is { session: TrainingSession; attendance: NonNullable<typeof entry.attendance> } =>
-        Boolean(entry.attendance),
+      .map((session) => ({
+        session,
+        attendance: this.calendarService.attendanceFor(session, playerId),
+      }))
+      .filter(
+        (
+          entry,
+        ): entry is {
+          session: TrainingSession;
+          attendance: NonNullable<typeof entry.attendance>;
+        } => Boolean(entry.attendance),
       )
       .sort((a, b) => a.session.date.getTime() - b.session.date.getTime());
   });
+
+  // ------------------------------------------------------------------
+  // Registro de asistencia de hoy (Vista Entrenador)
+  // ------------------------------------------------------------------
+
+  protected readonly attendanceOpen = signal(false);
+  protected readonly attendanceSessionId = signal<number | null>(null);
+
+  protected readonly todaySessions = computed(() =>
+    this.calendarService.sessionsForDate(this.today),
+  );
+
+  protected readonly attendanceSession = computed<TrainingSession | null>(() => {
+    const id = this.attendanceSessionId();
+    return this.todaySessions().find((session) => session.id === id) ?? null;
+  });
+
+  protected readonly todayLabel = computed(() => this.formatFullDate(this.today));
+
+  /** Abre el registro de asistencia de hoy preseleccionando el turno en curso (o el primero). */
+  protected openTodayAttendance(): void {
+    this.calendarService.setRole('entrenador');
+    this.attendanceSessionId.set(this.currentShiftId());
+    this.attendanceOpen.set(true);
+  }
+
+  protected closeAttendance(): void {
+    this.attendanceOpen.set(false);
+    this.attendanceSessionId.set(null);
+  }
+
+  protected selectAttendanceSession(sessionId: number): void {
+    this.attendanceSessionId.set(sessionId);
+  }
+
+  /** Marca (o desmarca, si se repite el clic) la presencia real de un jugador en el turno abierto. */
+  protected setPresence(attendance: Attendance, presence: Exclude<Presence, null>): void {
+    const sessionId = this.attendanceSessionId();
+    if (sessionId === null) return;
+    const next = attendance.presence === presence ? null : presence;
+    this.calendarService.setPresence(sessionId, attendance.id, next);
+  }
+
+  protected presentCount(session: TrainingSession): number {
+    return this.calendarService.presentCount(session);
+  }
+
+  /** Turno de hoy cuyo horario contiene la hora actual; si no hay ninguno, el primero del día. */
+  private currentShiftId(): number | null {
+    const sessions = this.todaySessions();
+    if (sessions.length === 0) return null;
+    const now = new Date();
+    const minutesNow = now.getHours() * 60 + now.getMinutes();
+    const ongoing = sessions.find(
+      (session) =>
+        minutesNow >= this.toMinutes(session.startTime) &&
+        minutesNow <= this.toMinutes(session.endTime),
+    );
+    return (ongoing ?? sessions[0]).id;
+  }
+
+  private toMinutes(time: string): number {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
 
   protected setRole(role: UserRole): void {
     this.calendarService.setRole(role);
@@ -261,7 +351,9 @@ export class Calendario {
 
   protected formatFullDate(date: Date): string {
     return capitalize(
-      new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(date),
+      new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+        date,
+      ),
     );
   }
 
