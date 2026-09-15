@@ -1,4 +1,12 @@
-import { Component, OnDestroy, OnInit, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LucideCircleAlert,
@@ -40,8 +48,10 @@ export class CoachArSession implements OnInit, OnDestroy {
 
   protected readonly notSupportedMessage = AR_NOT_SUPPORTED_MESSAGE;
 
-  private readonly canvasRef = viewChild<HTMLCanvasElement>('canvas');
-  private readonly overlayRef = viewChild<HTMLDivElement>('overlay');
+  // `viewChild` sobre un elemento del template entrega un `ElementRef`: hay que leer
+  // `nativeElement` antes de pasarlo a WebXR o a three.js, que esperan nodos DOM reales.
+  private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
+  private readonly overlayRef = viewChild<ElementRef<HTMLDivElement>>('overlay');
 
   protected readonly phase = signal<SessionPhase>('checking');
   protected readonly errorMessage = signal<string | null>(null);
@@ -86,15 +96,16 @@ export class CoachArSession implements OnInit, OnDestroy {
       const xr = (navigator as Navigator & { xr?: XRSystem }).xr;
       if (!xr) throw new Error('WebXR no disponible en este navegador.');
 
+      const overlayRoot = this.overlayRef()?.nativeElement;
       const session = await xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test'],
         optionalFeatures: ['dom-overlay'],
-        domOverlay: this.overlayRef() ? { root: this.overlayRef()! } : undefined,
+        ...(overlayRoot ? { domOverlay: { root: overlayRoot } } : {}),
       });
       this.xrSession = session;
       session.addEventListener('end', () => this.handleSessionEnded());
 
-      const canvas = this.canvasRef();
+      const canvas = this.canvasRef()?.nativeElement;
       if (!canvas) throw new Error('No se pudo inicializar el lienzo de RA.');
 
       // Carga perezosa: three.js solo se descarga cuando el usuario realmente inicia la RA.
