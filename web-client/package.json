@@ -6,8 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "deploy": "bash scripts/deploy-gh-pages.sh"
+    "test": "ng test"
   },
   "private": true,
   "packageManager": "npm@12.0.2",
