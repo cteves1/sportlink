@@ -82,8 +82,8 @@
         <p class="text-sm text-gray-600">{{ drill.description }}</p>
         <p class="text-xs text-gray-400">
           {{ drill.steps.length }} pasos
-          @if (conesLabel(drill); as cones) {
-            · {{ cones }}
+          @if (equipmentLabel(drill); as equipment) {
+            · {{ equipment }}
           }
         </p>
       </button>

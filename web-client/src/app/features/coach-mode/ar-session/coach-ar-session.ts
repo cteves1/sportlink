@@ -1,4 +1,13 @@
-import { Component, ElementRef, OnDestroy, OnInit, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LucideCircleAlert,
@@ -6,9 +15,11 @@ import {
   LucideCirclePlay,
   LucideRotateCcw,
   LucideX,
+  LucideZoomIn,
+  LucideZoomOut,
 } from '@lucide/angular';
 import { CoachModeService } from '../coach-mode.service';
-import { Drill } from '../coach-mode.models';
+import { DRILL_SCALE, Drill } from '../coach-mode.models';
 import { isArSupported } from '../ar/ar-support';
 import { AR_NOT_SUPPORTED_MESSAGE, ArNotSupported } from './ar-not-supported';
 
@@ -29,6 +40,8 @@ type SessionPhase = 'checking' | 'unsupported' | 'idle' | 'starting' | 'active' 
     LucideCirclePlay,
     LucideRotateCcw,
     LucideX,
+    LucideZoomIn,
+    LucideZoomOut,
     ArNotSupported,
   ],
   templateUrl: './coach-ar-session.html',
@@ -50,19 +63,31 @@ export class CoachArSession implements OnInit, OnDestroy {
   protected readonly playing = signal(true);
   protected readonly calibrated = signal(false);
 
+  /** Escala del ejercicio anclado, ajustable durante la sesión. */
+  protected readonly scale = signal<number>(DRILL_SCALE.default);
+  protected readonly scalePercent = computed(() => Math.round(this.scale() * 100));
+  protected readonly canGrow = computed(() => this.scale() < DRILL_SCALE.max);
+  protected readonly canShrink = computed(() => this.scale() > DRILL_SCALE.min);
+
   protected drill: Drill | null = null;
+
+  /** Lo que se ancla en el piso o la mesa según el ejercicio, para redactar las ayudas. */
+  private get anchorSubject(): string {
+    if (this.drill?.category !== 'fisico') return 'la mesa';
+    return this.drill.ladder ? 'la escalera' : 'los conos';
+  }
 
   /** Texto previo a iniciar la RA: la referencia a calibrar cambia según la categoría. */
   protected get startHint(): string {
     return this.drill?.category === 'fisico'
-      ? 'Activa la cámara para marcar el piso donde vas a entrenar y ver los conos del ejercicio.'
+      ? `Activa la cámara para marcar el piso donde vas a entrenar y ver ${this.anchorSubject} del ejercicio.`
       : 'Activa la cámara para calibrar tu mesa y ver el ejercicio en Realidad Aumentada.';
   }
 
   /** Texto mientras el usuario todavía no ancló el ejercicio. */
   protected get calibrationHint(): string {
     return this.drill?.category === 'fisico'
-      ? 'Apunta al piso y toca la pantalla sobre la retícula verde para colocar los conos.'
+      ? `Apunta al piso y toca la pantalla sobre la retícula verde para colocar ${this.anchorSubject}.`
       : 'Apunta al centro de la mesa y toca la pantalla sobre la retícula verde para calibrar.';
   }
 
@@ -119,6 +144,7 @@ export class CoachArSession implements OnInit, OnDestroy {
       const scene = new ArScene(canvas, session);
       await scene.init();
       scene.loadDrill(this.drill);
+      scene.setScale(this.scale());
       this.arScene = scene;
 
       this.phase.set('active');
@@ -149,6 +175,16 @@ export class CoachArSession implements OnInit, OnDestroy {
     const next = !this.playing();
     this.playing.set(next);
     this.arScene?.setPlaying(next);
+  }
+
+  /** Agranda o achica la mesa/los conos en pasos de 5 % para calzarlos con el espacio real. */
+  protected adjustScale(steps: number): void {
+    const requested = this.scale() + steps * DRILL_SCALE.step;
+    this.scale.set(this.arScene?.setScale(requested) ?? requested);
+  }
+
+  protected resetScale(): void {
+    this.scale.set(this.arScene?.setScale(DRILL_SCALE.default) ?? DRILL_SCALE.default);
   }
 
   protected recalibrate(): void {

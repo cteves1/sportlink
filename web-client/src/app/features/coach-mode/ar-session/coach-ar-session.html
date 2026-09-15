@@ -83,6 +83,35 @@
                 {{ calibrationHint }}
               </p>
             } @else {
+              <!-- Escala: permite calzar la mesa o los conos con el espacio real. -->
+              <div
+                class="flex items-center gap-2 rounded-full bg-black/50 px-2 py-1.5 text-white backdrop-blur"
+              >
+                <button
+                  type="button"
+                  (click)="adjustScale(-1)"
+                  [disabled]="!canShrink()"
+                  class="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 disabled:opacity-40"
+                >
+                  <svg lucideZoomOut [size]="18" class="block"></svg>
+                </button>
+                <button
+                  type="button"
+                  (click)="resetScale()"
+                  class="min-w-16 text-center text-sm font-medium tabular-nums"
+                >
+                  {{ scalePercent() }}%
+                </button>
+                <button
+                  type="button"
+                  (click)="adjustScale(1)"
+                  [disabled]="!canGrow()"
+                  class="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 disabled:opacity-40"
+                >
+                  <svg lucideZoomIn [size]="18" class="block"></svg>
+                </button>
+              </div>
+
               <div class="flex items-center gap-3">
                 <button
                   type="button"

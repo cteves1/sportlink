@@ -73,7 +73,10 @@ export class CoachModeConfig {
     }
   }
 
-  protected conesLabel(drill: Drill): string | null {
-    return drill.category === 'fisico' ? `${drill.cones.length} conos` : null;
+  /** Material que necesita el ejercicio físico: conos o cuadrados de escalera. */
+  protected equipmentLabel(drill: Drill): string | null {
+    if (drill.category !== 'fisico') return null;
+    if (drill.ladder) return `escalera de ${drill.ladder.cells} cuadrados`;
+    return `${drill.cones.length} conos`;
   }
 }

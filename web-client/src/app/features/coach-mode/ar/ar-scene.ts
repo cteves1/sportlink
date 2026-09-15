@@ -3,9 +3,12 @@ import {
   BallDrill,
   CONE_DIMENSIONS,
   ConeMarker,
+  DRILL_SCALE,
   Drill,
   DrillStep,
   FootworkStep,
+  FootworkTarget,
+  LadderSpec,
   PhysicalDrill,
   TABLE_DIMENSIONS,
 } from '../coach-mode.models';
@@ -14,6 +17,10 @@ const RETICLE_RADIUS_INNER = 0.08;
 const RETICLE_RADIUS_OUTER = 0.1;
 const BALL_RADIUS = 0.02;
 const RUNNER_RADIUS = 0.055;
+/** Espesor de los largueros y travesaños de la escalera de agilidad, en metros. */
+const LADDER_THICKNESS = 0.012;
+/** Separación del pie que se saca al costado respecto del borde de la escalera, en metros. */
+const LADDER_SIDE_MARGIN = 0.16;
 /** Altura a la que flota el cartel de instrucciones según el punto de anclaje (mesa o piso). */
 const INSTRUCTION_HEIGHT = { pelota: 0.4, fisico: 1.35 } as const;
 
@@ -74,6 +81,10 @@ export class ArScene {
   private footworkVisuals: FootworkVisual[] = [];
   /** Marcador que recorre el camino entre conos en los ejercicios físicos. */
   private runner: THREE.Mesh | null = null;
+  /** Escalera de agilidad y resaltado de la celda activa (solo en ejercicios de escalera). */
+  private ladderModel: THREE.Group | null = null;
+  private cellHighlight: THREE.Mesh | null = null;
+  private scale: number = DRILL_SCALE.default;
   private totalDurationMs = 0;
   private elapsedMs = 0;
   private lastFrameTimeMs: number | null = null;
@@ -133,6 +144,20 @@ export class ArScene {
 
   setPlaying(playing: boolean): void {
     this.playing = playing;
+  }
+
+  /**
+   * Escala uniforme del ejercicio anclado (mesa, conos o escalera) para que el usuario pueda
+   * ajustarlo a su espacio real. Devuelve la escala efectiva ya limitada al rango permitido.
+   */
+  setScale(scale: number): number {
+    this.scale = Math.min(DRILL_SCALE.max, Math.max(DRILL_SCALE.min, scale));
+    this.tableGroup.scale.setScalar(this.scale);
+    return this.scale;
+  }
+
+  getScale(): number {
+    return this.scale;
   }
 
   isCalibrated(): boolean {
@@ -281,14 +306,27 @@ export class ArScene {
     }
 
     // El cono de destino se agranda y enciende su halo mientras es el objetivo.
+    const target = active.step.target;
     for (const visual of this.coneVisuals) {
-      const isTarget = visual.marker.id === active.step.coneId;
+      const isTarget = target.kind === 'cono' && visual.marker.id === target.coneId;
       const scale = isTarget ? 1 + 0.12 * Math.sin(Math.PI * localT) : 1;
       visual.cone.scale.setScalar(scale);
       visual.halo.visible = isTarget;
       (visual.halo.material as THREE.MeshBasicMaterial).opacity = isTarget
         ? 0.35 + 0.3 * localT
         : 0;
+    }
+
+    // En la escalera se ilumina el cuadrado al que hay que entrar.
+    const ladder = this.currentDrill?.category === 'fisico' ? this.currentDrill.ladder : undefined;
+    if (this.cellHighlight && ladder) {
+      this.cellHighlight.visible = target.kind === 'escalera';
+      if (target.kind === 'escalera') {
+        this.cellHighlight.position.z = this.ladderCellZ(ladder, target.cell);
+        const material = this.cellHighlight.material as THREE.MeshBasicMaterial;
+        material.color.set(active.step.color);
+        material.opacity = 0.2 + 0.25 * Math.sin(Math.PI * localT);
+      }
     }
 
     this.updateInstructionText(active.step.instruction);
@@ -330,14 +368,24 @@ export class ArScene {
       disposeMesh(this.runner);
       this.runner = null;
     }
+
+    if (this.ladderModel) {
+      this.drillGroup.remove(this.ladderModel);
+      disposeGroup(this.ladderModel);
+      this.ladderModel = null;
+    }
+
+    if (this.cellHighlight) {
+      this.drillGroup.remove(this.cellHighlight);
+      disposeMesh(this.cellHighlight);
+      this.cellHighlight = null;
+    }
   }
 
-  /** Conos apoyados en el piso + tramos del recorrido entre ellos. */
+  /** Conos (o escalera de agilidad) en el piso + tramos del recorrido entre ellos. */
   private buildFootworkVisuals(drill: PhysicalDrill): void {
-    const positions = new Map<number, THREE.Vector3>();
     for (const marker of drill.cones) {
       const position = new THREE.Vector3(marker.x, 0, marker.z);
-      positions.set(marker.id, position);
 
       const cone = new THREE.Mesh(
         new THREE.ConeGeometry(CONE_DIMENSIONS.radius, CONE_DIMENSIONS.height, 24),
@@ -363,11 +411,18 @@ export class ArScene {
       this.coneVisuals.push({ marker, cone, halo, position });
     }
 
+    if (drill.ladder) {
+      this.ladderModel = this.createLadderModel(drill.ladder);
+      this.drillGroup.add(this.ladderModel);
+      this.cellHighlight = this.createCellHighlight(drill.ladder);
+      this.drillGroup.add(this.cellHighlight);
+    }
+
     let accumulated = 0;
-    let previous =
-      positions.get(drill.steps[drill.steps.length - 1]?.coneId) ?? new THREE.Vector3();
+    const lastStep = drill.steps[drill.steps.length - 1];
+    let previous = (lastStep && this.resolveTarget(drill, lastStep.target)) ?? new THREE.Vector3();
     for (const step of drill.steps) {
-      const to = positions.get(step.coneId);
+      const to = this.resolveTarget(drill, step.target);
       if (!to) continue;
 
       const from = previous.clone();
@@ -391,7 +446,7 @@ export class ArScene {
         totalDurationBeforeMs: accumulated,
       });
       accumulated += step.durationMs;
-      previous = to;
+      previous = to.clone();
     }
     this.totalDurationMs = accumulated;
 
@@ -402,6 +457,72 @@ export class ArScene {
     runner.position.set(previous.x, RUNNER_RADIUS, previous.z);
     this.drillGroup.add(runner);
     this.runner = runner;
+  }
+
+  /**
+   * Punto en el piso de un destino: la base del cono, o el centro de la celda de la escalera
+   * (desplazado al costado cuando el paso pide sacar el pie afuera).
+   */
+  private resolveTarget(drill: PhysicalDrill, target: FootworkTarget): THREE.Vector3 | null {
+    if (target.kind === 'cono') {
+      return this.coneVisuals.find((v) => v.marker.id === target.coneId)?.position.clone() ?? null;
+    }
+
+    const ladder = drill.ladder;
+    if (!ladder) return null;
+    const sideOffset = ladder.width / 2 + LADDER_SIDE_MARGIN;
+    const x =
+      target.side === 'izquierda' ? -sideOffset : target.side === 'derecha' ? sideOffset : 0;
+    return new THREE.Vector3(x, 0, this.ladderCellZ(ladder, target.cell));
+  }
+
+  /** Centro de una celda en z: la escalera arranca en el punto calibrado y avanza hacia -z. */
+  private ladderCellZ(ladder: LadderSpec, cell: number): number {
+    return -(cell + 0.5) * ladder.cellLength;
+  }
+
+  /** Escalera de agilidad plana sobre el piso: dos largueros y los travesaños de cada cuadrado. */
+  private createLadderModel(ladder: LadderSpec): THREE.Group {
+    const group = new THREE.Group();
+    const totalLength = ladder.cells * ladder.cellLength;
+    const material = new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.6 });
+    const railWidth = 0.03;
+
+    for (const side of [-1, 1] as const) {
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(railWidth, LADDER_THICKNESS, totalLength),
+        material,
+      );
+      rail.position.set((side * ladder.width) / 2, LADDER_THICKNESS / 2, -totalLength / 2);
+      group.add(rail);
+    }
+
+    for (let i = 0; i <= ladder.cells; i++) {
+      const rung = new THREE.Mesh(
+        new THREE.BoxGeometry(ladder.width + railWidth, LADDER_THICKNESS, railWidth),
+        material,
+      );
+      rung.position.set(0, LADDER_THICKNESS / 2, -i * ladder.cellLength);
+      group.add(rung);
+    }
+
+    return group;
+  }
+
+  /** Panel translúcido que ilumina el cuadrado de la escalera al que hay que entrar. */
+  private createCellHighlight(ladder: LadderSpec): THREE.Mesh {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(ladder.width, ladder.cellLength).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({
+        color: '#16a34a',
+        transparent: true,
+        opacity: 0.3,
+        side: THREE.DoubleSide,
+      }),
+    );
+    mesh.position.y = 0.004;
+    mesh.visible = false;
+    return mesh;
   }
 
   private buildBallVisuals(drill: BallDrill): void {
@@ -559,5 +680,11 @@ function disposeMesh(mesh: THREE.Mesh): void {
   const material = mesh.material;
   for (const mat of Array.isArray(material) ? material : [material]) {
     mat.dispose();
+  }
+}
+
+function disposeGroup(group: THREE.Group): void {
+  for (const child of group.children) {
+    if (child instanceof THREE.Mesh) disposeMesh(child);
   }
 }

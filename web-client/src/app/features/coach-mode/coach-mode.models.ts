@@ -38,12 +38,28 @@ export interface ConeMarker {
   color: string;
 }
 
-/** Un paso de un ejercicio físico: desplazarse hasta un cono concreto. */
+/** Escalera de agilidad apoyada en el piso, que avanza desde el punto calibrado hacia adelante. */
+export interface LadderSpec {
+  /** Cantidad de cuadrados (celdas) de la escalera. */
+  cells: number;
+  /** Largo de cada cuadrado, en metros. */
+  cellLength: number;
+  /** Ancho de la escalera, en metros. */
+  width: number;
+}
+
+/** Costado de la escalera donde se apoya el pie en cada paso. */
+export type LadderSide = 'izquierda' | 'centro' | 'derecha';
+
+/** Destino de un paso de un ejercicio físico: un cono o una celda de la escalera. */
+export type FootworkTarget =
+  { kind: 'cono'; coneId: number } | { kind: 'escalera'; cell: number; side: LadderSide };
+
+/** Un paso de un ejercicio físico: desplazarse hasta el destino indicado. */
 export interface FootworkStep {
   id: number;
   instruction: string;
-  /** Cono de destino de este paso (`ConeMarker.id`). */
-  coneId: number;
+  target: FootworkTarget;
   durationMs: number;
   color: string;
 }
@@ -61,11 +77,13 @@ export interface BallDrill extends DrillBase {
   steps: DrillStep[];
 }
 
-/** Ejercicio físico: se visualiza como conos en el piso y un recorrido entre ellos. */
+/** Ejercicio físico: se visualiza como conos (o una escalera) en el piso y el recorrido entre ellos. */
 export interface PhysicalDrill extends DrillBase {
   category: 'fisico';
   focus: PhysicalFocus;
   cones: ConeMarker[];
+  /** Presente solo en ejercicios de escalera de agilidad. */
+  ladder?: LadderSpec;
   steps: FootworkStep[];
 }
 
@@ -90,4 +108,12 @@ export const TABLE_DIMENSIONS = {
 export const CONE_DIMENSIONS = {
   radius: 0.07,
   height: 0.2,
+} as const;
+
+/** Escala con la que se dibuja el ejercicio en RA, ajustable por el usuario durante la sesión. */
+export const DRILL_SCALE = {
+  min: 0.5,
+  max: 2,
+  step: 0.05,
+  default: 1,
 } as const;
