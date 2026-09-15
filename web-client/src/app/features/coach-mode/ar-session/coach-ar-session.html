@@ -52,7 +52,7 @@
             <p
               class="rounded-lg bg-black/50 px-4 py-2 text-center text-sm text-white backdrop-blur"
             >
-              Activa la cámara para calibrar tu mesa y ver el ejercicio en Realidad Aumentada.
+              {{ startHint }}
             </p>
             <button
               type="button"
@@ -80,8 +80,7 @@
               <p
                 class="rounded-lg bg-black/50 px-4 py-2 text-center text-sm text-white backdrop-blur"
               >
-                Apunta al centro de la mesa y toca la pantalla sobre la retícula verde para
-                calibrar.
+                {{ calibrationHint }}
               </p>
             } @else {
               <div class="flex items-center gap-3">

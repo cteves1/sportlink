@@ -10,7 +10,8 @@
       <div>
         <h1 class="text-xl font-semibold sm:text-2xl">Modo Entrenador</h1>
         <p class="text-sm text-brand-50/90">
-          Elige un ejercicio y visualízalo en Realidad Aumentada sobre tu mesa.
+          Elige un ejercicio y visualízalo en Realidad Aumentada: con pelota sobre la mesa, o físico
+          con conos en el piso.
         </p>
       </div>
     </div>
@@ -32,6 +33,30 @@
     </div>
   }
 
+  <!-- Categorías: ejercicios con pelota (sobre la mesa) o físicos (conos en el piso) -->
+  <div class="flex gap-2 rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm">
+    <button
+      type="button"
+      (click)="selectCategory('pelota')"
+      class="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+      [class.bg-brand-600]="category() === 'pelota'"
+      [class.text-white]="category() === 'pelota'"
+      [class.text-gray-600]="category() !== 'pelota'"
+    >
+      Con pelota
+    </button>
+    <button
+      type="button"
+      (click)="selectCategory('fisico')"
+      class="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+      [class.bg-brand-600]="category() === 'fisico'"
+      [class.text-white]="category() === 'fisico'"
+      [class.text-gray-600]="category() !== 'fisico'"
+    >
+      Físicos
+    </button>
+  </div>
+
   <!-- Lista de ejercicios preestablecidos -->
   <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
     @for (drill of drills(); track drill.id) {
@@ -51,11 +76,16 @@
             class="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700"
           >
             <svg lucideTarget [size]="14" class="block"></svg>
-            {{ shotTypeLabel(drill) }}
+            {{ drillTypeLabel(drill) }}
           </span>
         </div>
         <p class="text-sm text-gray-600">{{ drill.description }}</p>
-        <p class="text-xs text-gray-400">{{ drill.steps.length }} pasos</p>
+        <p class="text-xs text-gray-400">
+          {{ drill.steps.length }} pasos
+          @if (conesLabel(drill); as cones) {
+            · {{ cones }}
+          }
+        </p>
       </button>
     }
   </section>

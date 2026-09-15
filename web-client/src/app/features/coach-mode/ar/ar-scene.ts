@@ -1,9 +1,21 @@
 import * as THREE from 'three';
-import { Drill, DrillStep, TABLE_DIMENSIONS } from '../coach-mode.models';
+import {
+  BallDrill,
+  CONE_DIMENSIONS,
+  ConeMarker,
+  Drill,
+  DrillStep,
+  FootworkStep,
+  PhysicalDrill,
+  TABLE_DIMENSIONS,
+} from '../coach-mode.models';
 
 const RETICLE_RADIUS_INNER = 0.08;
 const RETICLE_RADIUS_OUTER = 0.1;
 const BALL_RADIUS = 0.02;
+const RUNNER_RADIUS = 0.055;
+/** Altura a la que flota el cartel de instrucciones según el punto de anclaje (mesa o piso). */
+const INSTRUCTION_HEIGHT = { pelota: 0.4, fisico: 1.35 } as const;
 
 interface StepVisual {
   step: DrillStep;
@@ -13,11 +25,28 @@ interface StepVisual {
   totalDurationBeforeMs: number;
 }
 
+interface ConeVisual {
+  marker: ConeMarker;
+  cone: THREE.Mesh;
+  /** Anillo en el piso que se enciende cuando el cono es el destino activo. */
+  halo: THREE.Mesh;
+  position: THREE.Vector3;
+}
+
+interface FootworkVisual {
+  step: FootworkStep;
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  path: THREE.Mesh;
+  totalDurationBeforeMs: number;
+}
+
 /**
  * Encapsula toda la lógica de Three.js + WebXR de la sesión de RA del Modo Entrenador:
- * escena, hit-test para calibrar la mesa, y la visualización animada del ejercicio elegido
- * (trayectorias, pelotas y texto flotante). No depende de Angular para facilitar su
- * `dispose()` determinista desde `ngOnDestroy`.
+ * escena, hit-test para calibrar la superficie, y la visualización animada del ejercicio
+ * elegido. Según la categoría del ejercicio dibuja una mesa reglamentaria con las
+ * trayectorias de la pelota, o los conos en el piso con el recorrido entre ellos.
+ * No depende de Angular para facilitar su `dispose()` determinista desde `ngOnDestroy`.
  */
 export class ArScene {
   private readonly renderer: THREE.WebGLRenderer;
@@ -25,8 +54,11 @@ export class ArScene {
   private readonly camera = new THREE.PerspectiveCamera();
 
   private readonly reticle: THREE.Mesh;
+  /** Grupo anclado al punto calibrado: contiene la mesa (o los conos) y el ejercicio. */
   private readonly tableGroup = new THREE.Group();
   private readonly drillGroup = new THREE.Group();
+  /** Mesa reglamentaria; solo visible en ejercicios con pelota. */
+  private readonly tableModel: THREE.Group;
   private readonly instructionSprite: THREE.Sprite;
   private instructionTexture: THREE.CanvasTexture | null = null;
 
@@ -38,6 +70,10 @@ export class ArScene {
   private playing = true;
   private currentDrill: Drill | null = null;
   private stepVisuals: StepVisual[] = [];
+  private coneVisuals: ConeVisual[] = [];
+  private footworkVisuals: FootworkVisual[] = [];
+  /** Marcador que recorre el camino entre conos en los ejercicios físicos. */
+  private runner: THREE.Mesh | null = null;
   private totalDurationMs = 0;
   private elapsedMs = 0;
   private lastFrameTimeMs: number | null = null;
@@ -62,12 +98,16 @@ export class ArScene {
     this.reticle = this.createReticle();
     this.scene.add(this.reticle);
 
+    this.tableModel = this.createTableModel();
+    this.tableModel.visible = false;
+
     this.tableGroup.visible = false;
+    this.tableGroup.add(this.tableModel);
     this.tableGroup.add(this.drillGroup);
     this.scene.add(this.tableGroup);
 
     this.instructionSprite = this.createInstructionSprite('');
-    this.instructionSprite.position.set(0, TABLE_DIMENSIONS.height * 0 + 0.4, 0);
+    this.instructionSprite.position.set(0, INSTRUCTION_HEIGHT.pelota, 0);
     this.drillGroup.add(this.instructionSprite);
 
     this.session.addEventListener('select', this.onSelect);
@@ -86,6 +126,8 @@ export class ArScene {
   /** Carga el ejercicio a visualizar; los objetos 3D se (re)construyen inmediatamente. */
   loadDrill(drill: Drill): void {
     this.currentDrill = drill;
+    this.tableModel.visible = drill.category === 'pelota';
+    this.instructionSprite.position.y = INSTRUCTION_HEIGHT[drill.category];
     this.buildDrillVisuals(drill);
   }
 
@@ -163,9 +205,18 @@ export class ArScene {
     const deltaMs = now - this.lastFrameTimeMs;
     this.lastFrameTimeMs = now;
 
-    if (this.totalDurationMs === 0 || this.stepVisuals.length === 0) return;
-
+    if (this.totalDurationMs === 0) return;
     this.elapsedMs = (this.elapsedMs + deltaMs) % this.totalDurationMs;
+
+    if (this.currentDrill?.category === 'fisico') {
+      this.advanceFootworkAnimation();
+      return;
+    }
+    this.advanceBallAnimation();
+  }
+
+  private advanceBallAnimation(): void {
+    if (this.stepVisuals.length === 0) return;
 
     const active = this.stepVisuals.find(
       (visual) =>
@@ -202,16 +253,158 @@ export class ArScene {
     }
   }
 
+  private advanceFootworkAnimation(): void {
+    if (this.footworkVisuals.length === 0) return;
+
+    const active = this.footworkVisuals.find(
+      (visual) =>
+        this.elapsedMs >= visual.totalDurationBeforeMs &&
+        this.elapsedMs < visual.totalDurationBeforeMs + visual.step.durationMs,
+    );
+
+    for (const visual of this.footworkVisuals) {
+      const material = visual.path.material as THREE.MeshBasicMaterial;
+      material.opacity = visual === active ? 0.9 : 0.25;
+    }
+
+    if (!active) return;
+
+    const localT = Math.min(
+      1,
+      Math.max(0, (this.elapsedMs - active.totalDurationBeforeMs) / active.step.durationMs),
+    );
+
+    // El marcador avanza en línea recta con un pequeño salto para que se lea la dirección.
+    if (this.runner) {
+      this.runner.position.lerpVectors(active.from, active.to, localT);
+      this.runner.position.y = RUNNER_RADIUS + 0.12 * Math.sin(Math.PI * localT);
+    }
+
+    // El cono de destino se agranda y enciende su halo mientras es el objetivo.
+    for (const visual of this.coneVisuals) {
+      const isTarget = visual.marker.id === active.step.coneId;
+      const scale = isTarget ? 1 + 0.12 * Math.sin(Math.PI * localT) : 1;
+      visual.cone.scale.setScalar(scale);
+      visual.halo.visible = isTarget;
+      (visual.halo.material as THREE.MeshBasicMaterial).opacity = isTarget
+        ? 0.35 + 0.3 * localT
+        : 0;
+    }
+
+    this.updateInstructionText(active.step.instruction);
+  }
+
   private buildDrillVisuals(drill: Drill): void {
+    this.clearDrillVisuals();
+    if (drill.category === 'fisico') {
+      this.buildFootworkVisuals(drill);
+      return;
+    }
+    this.buildBallVisuals(drill);
+  }
+
+  /** Quita del grupo del ejercicio todo lo construido para el ejercicio anterior. */
+  private clearDrillVisuals(): void {
     for (const visual of this.stepVisuals) {
       this.drillGroup.remove(visual.line, visual.ball);
-      visual.line.geometry.dispose();
-      (visual.line.material as THREE.Material).dispose();
-      visual.ball.geometry.dispose();
-      (visual.ball.material as THREE.Material).dispose();
+      disposeMesh(visual.line);
+      disposeMesh(visual.ball);
     }
     this.stepVisuals = [];
 
+    for (const visual of this.coneVisuals) {
+      this.drillGroup.remove(visual.cone, visual.halo);
+      disposeMesh(visual.cone);
+      disposeMesh(visual.halo);
+    }
+    this.coneVisuals = [];
+
+    for (const visual of this.footworkVisuals) {
+      this.drillGroup.remove(visual.path);
+      disposeMesh(visual.path);
+    }
+    this.footworkVisuals = [];
+
+    if (this.runner) {
+      this.drillGroup.remove(this.runner);
+      disposeMesh(this.runner);
+      this.runner = null;
+    }
+  }
+
+  /** Conos apoyados en el piso + tramos del recorrido entre ellos. */
+  private buildFootworkVisuals(drill: PhysicalDrill): void {
+    const positions = new Map<number, THREE.Vector3>();
+    for (const marker of drill.cones) {
+      const position = new THREE.Vector3(marker.x, 0, marker.z);
+      positions.set(marker.id, position);
+
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(CONE_DIMENSIONS.radius, CONE_DIMENSIONS.height, 24),
+        new THREE.MeshStandardMaterial({ color: marker.color, roughness: 0.5 }),
+      );
+      cone.position.set(position.x, CONE_DIMENSIONS.height / 2, position.z);
+      this.drillGroup.add(cone);
+
+      const halo = new THREE.Mesh(
+        new THREE.RingGeometry(CONE_DIMENSIONS.radius * 1.6, CONE_DIMENSIONS.radius * 2.2, 32)
+          .rotateX(-Math.PI / 2)
+          .translate(position.x, 0.005, position.z),
+        new THREE.MeshBasicMaterial({
+          color: marker.color,
+          transparent: true,
+          opacity: 0,
+          side: THREE.DoubleSide,
+        }),
+      );
+      halo.visible = false;
+      this.drillGroup.add(halo);
+
+      this.coneVisuals.push({ marker, cone, halo, position });
+    }
+
+    let accumulated = 0;
+    let previous =
+      positions.get(drill.steps[drill.steps.length - 1]?.coneId) ?? new THREE.Vector3();
+    for (const step of drill.steps) {
+      const to = positions.get(step.coneId);
+      if (!to) continue;
+
+      const from = previous.clone();
+      const path = new THREE.Mesh(
+        new THREE.TubeGeometry(
+          new THREE.LineCurve3(from.clone().setY(0.01), to.clone().setY(0.01)),
+          1,
+          0.012,
+          8,
+          false,
+        ),
+        new THREE.MeshBasicMaterial({ color: step.color, transparent: true, opacity: 0.25 }),
+      );
+      this.drillGroup.add(path);
+
+      this.footworkVisuals.push({
+        step,
+        from,
+        to: to.clone(),
+        path,
+        totalDurationBeforeMs: accumulated,
+      });
+      accumulated += step.durationMs;
+      previous = to;
+    }
+    this.totalDurationMs = accumulated;
+
+    const runner = new THREE.Mesh(
+      new THREE.SphereGeometry(RUNNER_RADIUS, 20, 20),
+      new THREE.MeshStandardMaterial({ color: '#fde047', emissive: '#f59e0b', roughness: 0.3 }),
+    );
+    runner.position.set(previous.x, RUNNER_RADIUS, previous.z);
+    this.drillGroup.add(runner);
+    this.runner = runner;
+  }
+
+  private buildBallVisuals(drill: BallDrill): void {
     let accumulated = 0;
     for (const step of drill.steps) {
       const points = step.trajectory.map((p) => new THREE.Vector3(p.x, p.y, p.z));
@@ -236,6 +429,78 @@ export class ArScene {
       accumulated += step.durationMs;
     }
     this.totalDurationMs = accumulated;
+  }
+
+  /**
+   * Mesa reglamentaria ITTF (2,74 × 1,525 m, red de 15,25 cm) construida con la superficie
+   * de juego en `y = 0`, que es el punto que el usuario calibra: así las trayectorias de los
+   * ejercicios, expresadas respecto del centro de la mesa, caen justo sobre el tablero.
+   */
+  private createTableModel(): THREE.Group {
+    const { length, width, height, netHeight, netOverhang, lineWidth, topThickness } =
+      TABLE_DIMENSIONS;
+    const group = new THREE.Group();
+
+    const top = new THREE.Mesh(
+      new THREE.BoxGeometry(width, topThickness, length),
+      new THREE.MeshStandardMaterial({ color: '#1e3a8a', roughness: 0.75 }),
+    );
+    top.position.y = -topThickness / 2;
+    group.add(top);
+
+    // Líneas blancas: los dos laterales, los dos fondos y la central de dobles.
+    const lineMaterial = new THREE.MeshBasicMaterial({ color: '#f8fafc' });
+    const addLine = (sizeX: number, sizeZ: number, x: number, z: number) => {
+      const line = new THREE.Mesh(new THREE.BoxGeometry(sizeX, 0.002, sizeZ), lineMaterial);
+      line.position.set(x, 0.001, z);
+      group.add(line);
+    };
+    const halfWidth = width / 2;
+    const halfLength = length / 2;
+    addLine(lineWidth, length, -halfWidth + lineWidth / 2, 0);
+    addLine(lineWidth, length, halfWidth - lineWidth / 2, 0);
+    addLine(width, lineWidth, 0, -halfLength + lineWidth / 2);
+    addLine(width, lineWidth, 0, halfLength - lineWidth / 2);
+    addLine(0.003, length, 0, 0);
+
+    const net = new THREE.Mesh(
+      new THREE.PlaneGeometry(width + netOverhang * 2, netHeight),
+      new THREE.MeshBasicMaterial({
+        color: '#0f172a',
+        transparent: true,
+        opacity: 0.45,
+        side: THREE.DoubleSide,
+      }),
+    );
+    net.position.y = netHeight / 2;
+    group.add(net);
+
+    const netTape = new THREE.Mesh(
+      new THREE.BoxGeometry(width + netOverhang * 2, 0.015, 0.004),
+      new THREE.MeshBasicMaterial({ color: '#f8fafc' }),
+    );
+    netTape.position.y = netHeight;
+    group.add(netTape);
+
+    // Patas: solo cuatro cajas finas, suficientes para dar sensación de volumen en RA.
+    const legMaterial = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.6 });
+    const legHeight = height - topThickness;
+    for (const [sx, sz] of [
+      [-1, -1],
+      [-1, 1],
+      [1, -1],
+      [1, 1],
+    ] as const) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, legHeight, 0.05), legMaterial);
+      leg.position.set(
+        sx * (halfWidth - 0.12),
+        -topThickness - legHeight / 2,
+        sz * (halfLength - 0.2),
+      );
+      group.add(leg);
+    }
+
+    return group;
   }
 
   private createReticle(): THREE.Mesh {
@@ -285,5 +550,14 @@ export class ArScene {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, canvas.width / 2, canvas.height / 2, canvas.width - 32);
+  }
+}
+
+/** Libera la geometría y el material de una malla que se quita de la escena. */
+function disposeMesh(mesh: THREE.Mesh): void {
+  mesh.geometry.dispose();
+  const material = mesh.material;
+  for (const mat of Array.isArray(material) ? material : [material]) {
+    mat.dispose();
   }
 }

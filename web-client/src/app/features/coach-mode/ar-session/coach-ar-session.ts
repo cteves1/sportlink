@@ -1,12 +1,4 @@
-import {
-  Component,
-  ElementRef,
-  OnDestroy,
-  OnInit,
-  inject,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   LucideCircleAlert,
@@ -59,6 +51,20 @@ export class CoachArSession implements OnInit, OnDestroy {
   protected readonly calibrated = signal(false);
 
   protected drill: Drill | null = null;
+
+  /** Texto previo a iniciar la RA: la referencia a calibrar cambia según la categoría. */
+  protected get startHint(): string {
+    return this.drill?.category === 'fisico'
+      ? 'Activa la cámara para marcar el piso donde vas a entrenar y ver los conos del ejercicio.'
+      : 'Activa la cámara para calibrar tu mesa y ver el ejercicio en Realidad Aumentada.';
+  }
+
+  /** Texto mientras el usuario todavía no ancló el ejercicio. */
+  protected get calibrationHint(): string {
+    return this.drill?.category === 'fisico'
+      ? 'Apunta al piso y toca la pantalla sobre la retícula verde para colocar los conos.'
+      : 'Apunta al centro de la mesa y toca la pantalla sobre la retícula verde para calibrar.';
+  }
 
   // Se mantienen fuera de signals: son objetos no serializables cuyo único consumidor
   // es el propio ciclo de vida del componente (no se leen desde la plantilla).

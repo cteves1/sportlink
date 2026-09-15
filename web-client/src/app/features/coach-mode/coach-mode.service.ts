@@ -1,5 +1,12 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { Drill, TABLE_DIMENSIONS, TrajectoryPoint } from './coach-mode.models';
+import {
+  BallDrill,
+  Drill,
+  DrillCategory,
+  PhysicalDrill,
+  TABLE_DIMENSIONS,
+  TrajectoryPoint,
+} from './coach-mode.models';
 
 const HALF_WIDTH = TABLE_DIMENSIONS.width / 2;
 const HALF_LENGTH = TABLE_DIMENSIONS.length / 2;
@@ -19,13 +26,14 @@ function arc(from: [number, number], to: [number, number], apex: number): Trajec
   return points;
 }
 
-/** Ejercicios preestablecidos disponibles en el Modo Entrenador (sin generación por IA ni texto libre). */
-const PRESET_DRILLS: Drill[] = [
+/** Ejercicios con pelota: se visualizan sobre una mesa reglamentaria anclada en RA. */
+const BALL_DRILLS: BallDrill[] = [
   {
     id: 'topspin-derecha-cruzado',
     title: 'Topspin de derecha: 3 cruzadas, 1 paralela',
     description:
       'Serie de 4 bolas de topspin de derecha: 3 diagonales cruzadas hacia el revés del rival y 1 paralela por la línea, repitiendo el patrón.',
+    category: 'pelota',
     shotType: 'topspin-derecha',
     steps: [
       {
@@ -63,6 +71,7 @@ const PRESET_DRILLS: Drill[] = [
     title: 'Topspin de revés a la diagonal larga',
     description:
       'Bloques repetidos de topspin de revés jugados a la diagonal larga (cruzado), enfocados en consistencia y rotación.',
+    category: 'pelota',
     shotType: 'topspin-reves',
     steps: [
       {
@@ -93,6 +102,7 @@ const PRESET_DRILLS: Drill[] = [
     title: 'Saque corto + ataque de tercera bola',
     description:
       'Saque corto y bajo hacia el revés, seguido de un topspin de tercera bola agresivo hacia el ángulo abierto.',
+    category: 'pelota',
     shotType: 'saque',
     steps: [
       {
@@ -135,6 +145,7 @@ const PRESET_DRILLS: Drill[] = [
     title: 'Bloqueo alterno derecha/revés',
     description:
       'Bloqueos cortos alternando entre la esquina de derecha y de revés, priorizando reacción rápida y colocación.',
+    category: 'pelota',
     shotType: 'bloqueo',
     steps: [
       {
@@ -174,10 +185,172 @@ const PRESET_DRILLS: Drill[] = [
   },
 ];
 
+const CONE_ORANGE = '#f97316';
+const CONE_BLUE = '#2563eb';
+const CONE_GREEN = '#16a34a';
+
+/**
+ * Ejercicios físicos (sin pelota): se visualizan como conos apoyados en el piso.
+ * Las coordenadas están en metros respecto del punto que el usuario calibra, con `z`
+ * negativo hacia la mesa: así el jugador calibra donde se para y los conos quedan
+ * distribuidos a su alrededor.
+ */
+const PHYSICAL_DRILLS: PhysicalDrill[] = [
+  {
+    id: 'fisico-desplazamiento-lateral',
+    title: 'Desplazamiento lateral entre 2 conos',
+    description:
+      'Dos conos separados 2 metros: desplazamiento lateral con pasos cortos, sin cruzar los pies y manteniendo la posición baja.',
+    category: 'fisico',
+    focus: 'desplazamiento',
+    cones: [
+      { id: 1, x: -1, z: 0, color: CONE_ORANGE },
+      { id: 2, x: 1, z: 0, color: CONE_BLUE },
+    ],
+    steps: [
+      {
+        id: 1,
+        instruction: 'Desplázate al cono izquierdo y toca el piso',
+        coneId: 1,
+        durationMs: 1200,
+        color: CONE_ORANGE,
+      },
+      {
+        id: 2,
+        instruction: 'Vuelve al cono derecho sin cruzar los pies',
+        coneId: 2,
+        durationMs: 1200,
+        color: CONE_BLUE,
+      },
+    ],
+  },
+  {
+    id: 'fisico-triangulo-footwork',
+    title: 'Triángulo de footwork (3 conos)',
+    description:
+      'Triángulo de 3 conos para trabajar la entrada al golpe: dos laterales atrás y uno adelante, simulando la bola corta.',
+    category: 'fisico',
+    focus: 'agilidad',
+    cones: [
+      { id: 1, x: -1.1, z: 0.6, color: CONE_ORANGE },
+      { id: 2, x: 1.1, z: 0.6, color: CONE_BLUE },
+      { id: 3, x: 0, z: -0.9, color: CONE_GREEN },
+    ],
+    steps: [
+      {
+        id: 1,
+        instruction: 'Sal al cono lateral izquierdo (derecha desde el revés)',
+        coneId: 1,
+        durationMs: 1100,
+        color: CONE_ORANGE,
+      },
+      {
+        id: 2,
+        instruction: 'Cruza al cono lateral derecho',
+        coneId: 2,
+        durationMs: 1100,
+        color: CONE_BLUE,
+      },
+      {
+        id: 3,
+        instruction: 'Entra al cono de adelante: simula la bola corta',
+        coneId: 3,
+        durationMs: 1000,
+        color: CONE_GREEN,
+      },
+      {
+        id: 4,
+        instruction: 'Recupera hacia el lateral izquierdo y repite',
+        coneId: 1,
+        durationMs: 1100,
+        color: CONE_ORANGE,
+      },
+    ],
+  },
+  {
+    id: 'fisico-estrella-cinco-conos',
+    title: 'Estrella de 5 conos',
+    description:
+      'Cinco conos en estrella con salida y regreso al centro en cada repetición: resistencia específica y cambios de dirección.',
+    category: 'fisico',
+    focus: 'resistencia',
+    cones: [
+      { id: 1, x: 0, z: 0, color: CONE_GREEN },
+      { id: 2, x: -1.2, z: -0.8, color: CONE_ORANGE },
+      { id: 3, x: 1.2, z: -0.8, color: CONE_BLUE },
+      { id: 4, x: -1.2, z: 0.9, color: CONE_ORANGE },
+      { id: 5, x: 1.2, z: 0.9, color: CONE_BLUE },
+    ],
+    steps: [
+      {
+        id: 1,
+        instruction: 'Salida al cono delantero izquierdo',
+        coneId: 2,
+        durationMs: 1000,
+        color: CONE_ORANGE,
+      },
+      {
+        id: 2,
+        instruction: 'Vuelve al centro en posición baja',
+        coneId: 1,
+        durationMs: 800,
+        color: CONE_GREEN,
+      },
+      {
+        id: 3,
+        instruction: 'Salida al cono delantero derecho',
+        coneId: 3,
+        durationMs: 1000,
+        color: CONE_BLUE,
+      },
+      {
+        id: 4,
+        instruction: 'Vuelve al centro',
+        coneId: 1,
+        durationMs: 800,
+        color: CONE_GREEN,
+      },
+      {
+        id: 5,
+        instruction: 'Retrocede al cono trasero izquierdo',
+        coneId: 4,
+        durationMs: 1100,
+        color: CONE_ORANGE,
+      },
+      {
+        id: 6,
+        instruction: 'Vuelve al centro',
+        coneId: 1,
+        durationMs: 800,
+        color: CONE_GREEN,
+      },
+      {
+        id: 7,
+        instruction: 'Retrocede al cono trasero derecho',
+        coneId: 5,
+        durationMs: 1100,
+        color: CONE_BLUE,
+      },
+      {
+        id: 8,
+        instruction: 'Cierra la serie volviendo al centro',
+        coneId: 1,
+        durationMs: 800,
+        color: CONE_GREEN,
+      },
+    ],
+  },
+];
+
 @Injectable({ providedIn: 'root' })
 export class CoachModeService {
   /** Ejercicios preestablecidos disponibles para elegir en la vista de configuración. */
-  readonly drills = signal<Drill[]>(PRESET_DRILLS);
+  readonly drills = signal<Drill[]>([...BALL_DRILLS, ...PHYSICAL_DRILLS]);
+
+  /** Ejercicios de una categoría concreta, para las pestañas de la vista de configuración. */
+  drillsByCategory(category: DrillCategory): Drill[] {
+    return this.drills().filter((drill) => drill.category === category);
+  }
 
   private readonly _selectedDrillId = signal<string | null>(null);
   readonly selectedDrillId = this._selectedDrillId.asReadonly();
@@ -190,6 +363,10 @@ export class CoachModeService {
 
   selectDrill(id: string): void {
     this._selectedDrillId.set(id);
+  }
+
+  clearSelection(): void {
+    this._selectedDrillId.set(null);
   }
 
   drillById(id: string): Drill | null {
