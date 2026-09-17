@@ -96,6 +96,53 @@ export class CoachArSession implements OnInit, OnDestroy {
   private xrSession: XRSession | null = null;
   private arScene: import('../ar/ar-scene').ArScene | null = null;
 
+  /** Último punto del dedo que arrastra el ejercicio, en píxeles de pantalla. */
+  private dragPoint: { x: number; y: number } | null = null;
+  /** Distancia entre los dos dedos al empezar la pinza, y escala en ese momento. */
+  private pinchStartDistance = 0;
+  private pinchStartScale: number = DRILL_SCALE.default;
+
+  /**
+   * Gestos sobre el ejercicio ya anclado: un dedo lo arrastra por el piso y dos dedos lo
+   * agrandan o achican. La capa que los captura solo existe una vez calibrado, porque
+   * mientras se calibra el toque lo necesita WebXR para el evento `select` del hit-test.
+   */
+  protected onTouchStart(event: TouchEvent): void {
+    if (event.touches.length >= 2) {
+      this.dragPoint = null;
+      this.pinchStartDistance = touchDistance(event);
+      this.pinchStartScale = this.scale();
+      return;
+    }
+
+    const touch = event.touches[0];
+    this.dragPoint = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+
+  protected onTouchMove(event: TouchEvent): void {
+    event.preventDefault();
+
+    if (event.touches.length >= 2) {
+      if (this.pinchStartDistance === 0) return;
+      const factor = touchDistance(event) / this.pinchStartDistance;
+      this.applyScale(this.pinchStartScale * factor);
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch || !this.dragPoint) return;
+    this.arScene?.panBy(touch.clientX - this.dragPoint.x, touch.clientY - this.dragPoint.y);
+    this.dragPoint = { x: touch.clientX, y: touch.clientY };
+  }
+
+  protected onTouchEnd(event: TouchEvent): void {
+    this.pinchStartDistance = 0;
+    // Si queda un dedo en pantalla, el arrastre continúa desde su posición actual.
+    const touch = event.touches[0];
+    this.dragPoint =
+      event.touches.length === 1 && touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+
   async ngOnInit(): Promise<void> {
     const drillId = this.route.snapshot.paramMap.get('drillId');
     this.drill = drillId ? this.coachModeService.drillById(drillId) : null;
@@ -179,12 +226,16 @@ export class CoachArSession implements OnInit, OnDestroy {
 
   /** Agranda o achica la mesa/los conos en pasos de 5 % para calzarlos con el espacio real. */
   protected adjustScale(steps: number): void {
-    const requested = this.scale() + steps * DRILL_SCALE.step;
-    this.scale.set(this.arScene?.setScale(requested) ?? requested);
+    this.applyScale(this.scale() + steps * DRILL_SCALE.step);
   }
 
   protected resetScale(): void {
-    this.scale.set(this.arScene?.setScale(DRILL_SCALE.default) ?? DRILL_SCALE.default);
+    this.applyScale(DRILL_SCALE.default);
+  }
+
+  /** La escena recorta la escala al rango permitido y devuelve la que quedó aplicada. */
+  private applyScale(scale: number): void {
+    this.scale.set(this.arScene?.setScale(scale) ?? scale);
   }
 
   protected recalibrate(): void {
@@ -204,4 +255,11 @@ export class CoachArSession implements OnInit, OnDestroy {
       this.router.navigate(['/coach-mode']);
     }
   }
+}
+
+/** Distancia en píxeles entre los dos primeros dedos de un gesto de pinza. */
+function touchDistance(event: TouchEvent): number {
+  const [first, second] = [event.touches[0], event.touches[1]];
+  if (!first || !second) return 0;
+  return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
 }

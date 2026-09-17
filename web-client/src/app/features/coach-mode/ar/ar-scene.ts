@@ -21,6 +21,9 @@ const RUNNER_RADIUS = 0.055;
 const LADDER_THICKNESS = 0.012;
 /** Separación del pie que se saca al costado respecto del borde de la escalera, en metros. */
 const LADDER_SIDE_MARGIN = 0.16;
+/** Metros que recorre el objeto al arrastrar el dedo el alto completo de la pantalla. */
+const PAN_SCREEN_METERS = 3;
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
 /** Altura a la que flota el cartel de instrucciones según el punto de anclaje (mesa o piso). */
 const INSTRUCTION_HEIGHT = { pelota: 0.4, fisico: 1.35 } as const;
 
@@ -158,6 +161,28 @@ export class ArScene {
 
   getScale(): number {
     return this.scale;
+  }
+
+  /**
+   * Arrastra el ejercicio sobre el plano del piso siguiendo el dedo: el desplazamiento se
+   * interpreta respecto de hacia dónde mira la cámara, así "hacia abajo" siempre acerca el
+   * objeto al usuario sin importar desde qué lado lo esté mirando.
+   */
+  panBy(deltaXPixels: number, deltaYPixels: number): void {
+    const metersPerPixel = PAN_SCREEN_METERS / Math.max(window.innerHeight, 1);
+    const forward = new THREE.Vector3();
+    this.renderer.xr.getCamera().getWorldDirection(forward);
+    forward.y = 0;
+    if (forward.lengthSq() < 1e-6) {
+      // Cámara mirando de frente al piso: no hay dirección horizontal útil.
+      return;
+    }
+    forward.normalize();
+    const right = new THREE.Vector3().crossVectors(forward, WORLD_UP).normalize();
+
+    this.tableGroup.position
+      .addScaledVector(right, deltaXPixels * metersPerPixel)
+      .addScaledVector(forward, -deltaYPixels * metersPerPixel);
   }
 
   isCalibrated(): boolean {

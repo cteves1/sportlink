@@ -30,6 +30,21 @@
 
       <!-- Overlay DOM (WebXR dom-overlay): botones grandes, no bloquean la vista de la cámara. -->
       <div #overlay class="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
+        <!--
+          Capa de gestos sobre el ejercicio ya anclado: un dedo lo arrastra por el piso y dos
+          dedos lo escalan. Solo existe cuando está calibrado, porque antes el toque lo necesita
+          WebXR para el `select` del hit-test. Va primero para quedar por debajo de los botones.
+        -->
+        @if (phase() === 'active' && calibrated()) {
+          <div
+            class="pointer-events-auto absolute inset-0 touch-none"
+            (touchstart)="onTouchStart($event)"
+            (touchmove)="onTouchMove($event)"
+            (touchend)="onTouchEnd($event)"
+            (touchcancel)="onTouchEnd($event)"
+          ></div>
+        }
+
         <div class="flex items-center justify-between">
           <span
             class="pointer-events-auto rounded-full bg-black/50 px-3 py-1.5 text-xs font-medium text-white backdrop-blur"
@@ -83,6 +98,10 @@
                 {{ calibrationHint }}
               </p>
             } @else {
+              <p class="rounded-lg bg-black/50 px-3 py-1.5 text-xs text-white/90 backdrop-blur">
+                Arrastra con un dedo para mover · pellizca con dos para escalar
+              </p>
+
               <!-- Escala: permite calzar la mesa o los conos con el espacio real. -->
               <div
                 class="flex items-center gap-2 rounded-full bg-black/50 px-2 py-1.5 text-white backdrop-blur"
