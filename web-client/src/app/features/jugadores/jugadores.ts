@@ -11,9 +11,18 @@ import {
 } from '@lucide/angular';
 import {
   Athlete,
+  CATEGORY_OPTIONS,
   Category,
   PlayersService,
   WelcomeFormAnswers,
+  categoryBadgeClasses,
+  categoryLabel,
+  isEliteCategory,
+  paddleGripLabel,
+  playingStyleLabel,
+  PLAYER_LEVEL_LABELS,
+  rubberTypeLabel,
+  trainingDaysLabel,
 } from '../../core/players/players.service';
 import { buildWhatsappLink, sendWhatsapp } from '../../core/players/whatsapp';
 import { PlayerFormModal } from '../../shared/player-form-modal/player-form-modal';
@@ -41,8 +50,16 @@ type StatusFilter = 'todos' | 'activo' | 'inactivo';
 export class Jugadores {
   private readonly playersService = inject(PlayersService);
 
-  /** Categorías disponibles para los chips de filtro, de élite (1) a novato (8). */
-  protected readonly categories: Category[] = [1, 2, 3, 4, 5, 6, 7, 8];
+  /** Categorías disponibles para los chips de filtro, de Atleta Elite a Infantil. */
+  protected readonly categories = CATEGORY_OPTIONS;
+
+  protected readonly categoryLabel = categoryLabel;
+  protected readonly categoryBadgeClasses = categoryBadgeClasses;
+  protected readonly paddleGripLabel = paddleGripLabel;
+  protected readonly playingStyleLabel = playingStyleLabel;
+  protected readonly rubberTypeLabel = rubberTypeLabel;
+  protected readonly trainingDaysLabel = trainingDaysLabel;
+  protected readonly levelLabels = PLAYER_LEVEL_LABELS;
 
   protected readonly athletes = this.playersService.athletes;
 
@@ -121,17 +138,9 @@ export class Jugadores {
     sendWhatsapp(athlete);
   }
 
-  /** Los atletas de categoría 1 tienen ficha de seguimiento de alto rendimiento. */
+  /** Los atletas de Atleta Elite y categoría 1 tienen ficha de seguimiento de alto rendimiento. */
   protected isElite(athlete: Athlete): boolean {
-    return athlete.category === 1;
-  }
-
-  /** Clases del badge de categoría: cat 1 destaca como nivel élite, 2-3 azul, 4-5 verde, 6-8 gris (novato). */
-  protected categoryBadgeClasses(category: Category): string {
-    if (category === 1) return 'bg-amber-100 text-amber-800 ring-1 ring-amber-300';
-    if (category <= 3) return 'bg-blue-100 text-blue-700';
-    if (category <= 5) return 'bg-brand-100 text-brand-700';
-    return 'bg-gray-100 text-gray-600';
+    return isEliteCategory(athlete.category);
   }
 
   protected formatBirthDate(date: Date): string {

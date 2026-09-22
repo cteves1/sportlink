@@ -44,12 +44,16 @@
         </div>
       </div>
     } @else {
+      <!-- autocomplete="off" en el form y en cada input: el navegador no debe sugerir datos de otros jugadores. -->
       <form
         [formGroup]="form"
         (ngSubmit)="submitPlayer()"
         (keydown.enter)="blockEnterSubmit($event)"
+        autocomplete="off"
         class="flex flex-col gap-4"
       >
+        <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Datos personales</p>
+
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label for="firstName" class="mb-1 block text-sm font-medium text-gray-700"
@@ -59,6 +63,8 @@
               id="firstName"
               type="text"
               formControlName="firstName"
+              name="sl-first-name"
+              autocomplete="off"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
             />
             @if (form.controls.firstName.invalid && form.controls.firstName.touched) {
@@ -74,6 +80,8 @@
               id="lastName"
               type="text"
               formControlName="lastName"
+              name="sl-last-name"
+              autocomplete="off"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
             />
             @if (form.controls.lastName.invalid && form.controls.lastName.touched) {
@@ -90,6 +98,8 @@
             id="birthDate"
             type="date"
             formControlName="birthDate"
+            name="sl-birth-date"
+            autocomplete="off"
             class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
           />
           @if (form.controls.birthDate.invalid && form.controls.birthDate.touched) {
@@ -104,6 +114,8 @@
               id="phone"
               type="tel"
               formControlName="phone"
+              name="sl-phone"
+              autocomplete="off"
               placeholder="+54 9 11 1234-5678"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
             />
@@ -121,6 +133,7 @@
             <select
               id="playerType"
               formControlName="playerType"
+              autocomplete="off"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
             >
               <option value="regular">Regular</option>
@@ -129,22 +142,23 @@
           </div>
         </div>
 
-        <div>
-          <label for="category" class="mb-1 block text-sm font-medium text-gray-700"
-            >Categoría</label
-          >
-          <select
-            id="category"
-            formControlName="category"
-            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-          >
-            @for (category of categories; track category) {
-              <option [value]="category">Categoría {{ category }}</option>
-            }
-          </select>
-        </div>
-
         <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="category" class="mb-1 block text-sm font-medium text-gray-700"
+              >Categoría</label
+            >
+            <select
+              id="category"
+              formControlName="category"
+              autocomplete="off"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            >
+              @for (category of categories; track category) {
+                <option [value]="category">{{ categoryLabel(category) }}</option>
+              }
+            </select>
+          </div>
+
           <div>
             <label for="dominantHand" class="mb-1 block text-sm font-medium text-gray-700"
               >Mano Hábil</label
@@ -152,25 +166,173 @@
             <select
               id="dominantHand"
               formControlName="dominantHand"
+              autocomplete="off"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
             >
               <option value="derecha">Derecha</option>
               <option value="izquierda">Izquierda</option>
             </select>
           </div>
+        </div>
 
-          <div>
-            <label for="paddleGrip" class="mb-1 block text-sm font-medium text-gray-700"
-              >Tipo de Paleta</label
-            >
-            <select
-              id="paddleGrip"
-              formControlName="paddleGrip"
-              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-            >
-              <option value="clasica">Clásica</option>
-              <option value="lapicero">Lapicero</option>
-            </select>
+        <div class="border-t border-gray-100 pt-4">
+          <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Perfil de juego
+          </p>
+
+          <label for="level" class="mb-1 block text-sm font-medium text-gray-700">Nivel</label>
+          <select
+            id="level"
+            formControlName="level"
+            autocomplete="off"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          >
+            <option value="principiante">Principiante</option>
+            <option value="intermedio">Intermedio</option>
+            <option value="avanzado">Avanzado</option>
+          </select>
+
+          @if (!showIntermediateFields()) {
+            <p class="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+              Para un principiante no hace falta especificar paleta ni equipamiento.
+            </p>
+          }
+        </div>
+
+        @if (showIntermediateFields()) {
+          <div class="flex flex-col gap-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="paddleGrip" class="mb-1 block text-sm font-medium text-gray-700"
+                  >Tipo de Paleta</label
+                >
+                <select
+                  id="paddleGrip"
+                  formControlName="paddleGrip"
+                  autocomplete="off"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                >
+                  <option value="clasica">Clásica</option>
+                  <option value="lapicero">Lapicero</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="playingStyle" class="mb-1 block text-sm font-medium text-gray-700"
+                  >Estilo de Juego</label
+                >
+                <select
+                  id="playingStyle"
+                  formControlName="playingStyle"
+                  autocomplete="off"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                >
+                  <option value="ofensivo">Ofensivo</option>
+                  <option value="defensivo">Defensivo</option>
+                  <option value="all-round">All-round</option>
+                  <option value="bloqueador">Bloqueador</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="rubberForehand" class="mb-1 block text-sm font-medium text-gray-700"
+                  >Goma de Derecha</label
+                >
+                <select
+                  id="rubberForehand"
+                  formControlName="rubberForehand"
+                  autocomplete="off"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                >
+                  <option value="liso">Liso</option>
+                  <option value="pupo-corto">Pupo corto</option>
+                  <option value="pupo-largo">Pupo largo</option>
+                  <option value="antitopspin">Antitopspin</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="rubberBackhand" class="mb-1 block text-sm font-medium text-gray-700"
+                  >Goma de Revés</label
+                >
+                <select
+                  id="rubberBackhand"
+                  formControlName="rubberBackhand"
+                  autocomplete="off"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                >
+                  <option value="liso">Liso</option>
+                  <option value="pupo-corto">Pupo corto</option>
+                  <option value="pupo-largo">Pupo largo</option>
+                  <option value="antitopspin">Antitopspin</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (showAdvancedFields()) {
+          <div class="flex flex-col gap-3">
+            <div>
+              <label for="club" class="mb-1 block text-sm font-medium text-gray-700">Club</label>
+              <input
+                id="club"
+                type="text"
+                formControlName="club"
+                name="sl-club"
+                autocomplete="off"
+                placeholder="Club Atlético..."
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              />
+              @if (form.controls.club.invalid && form.controls.club.touched) {
+                <p class="mt-1 text-xs text-red-600">Requerido.</p>
+              }
+            </div>
+
+            <div>
+              <label for="specificGoal" class="mb-1 block text-sm font-medium text-gray-700"
+                >Objetivo en Concreto</label
+              >
+              <textarea
+                id="specificGoal"
+                formControlName="specificGoal"
+                name="sl-specific-goal"
+                autocomplete="off"
+                rows="2"
+                placeholder="Clasificar al Nacional Sub-19..."
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              ></textarea>
+              @if (form.controls.specificGoal.invalid && form.controls.specificGoal.touched) {
+                <p class="mt-1 text-xs text-red-600">Requerido.</p>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Días acordados con el entrenador: se piden para cualquier nivel, en alta y edición. -->
+        <div class="border-t border-gray-100 pt-4" formGroupName="trainingDays">
+          <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Entrenamiento
+          </p>
+          <p class="mb-2 text-sm font-medium text-gray-700">
+            Días de entrenamiento acordados con el entrenador
+          </p>
+          <div class="flex flex-wrap gap-2">
+            @for (day of weekdays; track day.value) {
+              <label
+                class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <input
+                  type="checkbox"
+                  [formControlName]="dayControlName(day.value)"
+                  autocomplete="off"
+                  class="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-700"
+                />
+                {{ day.short }}
+              </label>
+            }
           </div>
         </div>
 

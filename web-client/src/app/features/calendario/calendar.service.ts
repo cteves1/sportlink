@@ -141,6 +141,51 @@ export class CalendarService {
     return session.attendances.filter((a) => a.status === 'confirmado').length;
   }
 
+  /** Cupos todavía libres en un turno. */
+  freeSlots(session: TrainingSession): number {
+    return Math.max(0, session.capacity - this.confirmedCount(session));
+  }
+
+  hasFreeSlot(session: TrainingSession): boolean {
+    return this.freeSlots(session) > 0;
+  }
+
+  /**
+   * Reserva un cupo para un jugador. Si ya tenía una asistencia cancelada en el turno la
+   * restaura; si no, agrega una nueva. No hace nada si el turno está completo o ya reservó.
+   *
+   * El jugador llega desde la cuenta autenticada (`PlayersService`) o desde el selector mock
+   * de la Vista Jugador; ambas numeraciones de id conviven en la demo sin backend.
+   */
+  bookAttendance(sessionId: number, player: { id: number; name: string; category: number }): void {
+    const session = this.sessions().find((s) => s.id === sessionId);
+    if (!session || !this.hasFreeSlot(session)) return;
+
+    const existing = this.attendanceFor(session, player.id);
+    if (existing) {
+      if (existing.status === 'ausente') {
+        this.restoreAttendance(sessionId, existing.id);
+      }
+      return;
+    }
+
+    const newAttendance: Attendance = {
+      id: Math.max(0, ...session.attendances.map((a) => a.id)) + 1,
+      playerId: player.id,
+      playerName: player.name,
+      category: player.category,
+      status: 'confirmado',
+      presence: null,
+    };
+
+    this.sessions.update((sessions) =>
+      sessions.map((s) =>
+        s.id === sessionId ? { ...s, attendances: [...s.attendances, newAttendance] } : s,
+      ),
+    );
+    this.persist();
+  }
+
   /** Turnos programados para una fecha concreta. */
   sessionsForDate(date: Date): TrainingSession[] {
     return this.sessionsByDateKey().get(dateKey(date)) ?? [];

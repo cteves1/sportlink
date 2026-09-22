@@ -187,7 +187,130 @@
             <option value="intermedio">Intermedio</option>
             <option value="avanzado">Avanzado</option>
           </select>
+          @if (!showIntermediateFields()) {
+            <p class="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+              Como estás empezando, no hace falta que especifiques tu paleta. Tu entrenador te
+              ayudará a elegirla.
+            </p>
+          }
         </div>
+
+        <!-- Perfil de juego: se pide desde nivel intermedio. -->
+        @if (showIntermediateFields()) {
+          <div class="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Tu equipamiento</p>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="paddleGrip" class="mb-1 block text-sm font-medium text-gray-700">Tipo de paleta</label>
+                <select
+                  id="paddleGrip"
+                  formControlName="paddleGrip"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                >
+                  <option value="clasica">Clásica</option>
+                  <option value="lapicero">Lapicero</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="playingStyle" class="mb-1 block text-sm font-medium text-gray-700">Estilo de juego</label>
+                <select
+                  id="playingStyle"
+                  formControlName="playingStyle"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                >
+                  <option value="ofensivo">Ofensivo</option>
+                  <option value="defensivo">Defensivo</option>
+                  <option value="all-round">All-round</option>
+                  <option value="bloqueador">Bloqueador</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label for="rubberForehand" class="mb-1 block text-sm font-medium text-gray-700">Goma de derecha</label>
+                <select
+                  id="rubberForehand"
+                  formControlName="rubberForehand"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                >
+                  <option value="liso">Liso</option>
+                  <option value="pupo-corto">Pupo corto</option>
+                  <option value="pupo-largo">Pupo largo</option>
+                  <option value="antitopspin">Antitopspin</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="rubberBackhand" class="mb-1 block text-sm font-medium text-gray-700">Goma de revés</label>
+                <select
+                  id="rubberBackhand"
+                  formControlName="rubberBackhand"
+                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                >
+                  <option value="liso">Liso</option>
+                  <option value="pupo-corto">Pupo corto</option>
+                  <option value="pupo-largo">Pupo largo</option>
+                  <option value="antitopspin">Antitopspin</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Club, días de entrenamiento y objetivo concreto: solo nivel avanzado. -->
+        @if (showAdvancedFields()) {
+          <div class="flex flex-col gap-4 rounded-lg border border-brand-200 bg-brand-50 p-4">
+            <p class="text-xs font-semibold uppercase tracking-wide text-brand-700">Tu plan de competencia</p>
+
+            <div>
+              <label for="club" class="mb-1 block text-sm font-medium text-gray-700">¿En qué club juegas?</label>
+              <input
+                id="club"
+                type="text"
+                formControlName="club"
+                autocomplete="off"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              />
+              @if (experienceForm.controls.club.invalid && experienceForm.controls.club.touched) {
+                <p class="mt-1 text-xs text-red-600">Requerido.</p>
+              }
+            </div>
+
+            <div formGroupName="trainingDays">
+              <p class="mb-2 block text-sm font-medium text-gray-700">¿Qué días entrenas?</p>
+              <div class="flex flex-wrap gap-2">
+                @for (day of weekdays; track day.value) {
+                  <label
+                    class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      [formControlName]="dayControlName(day.value)"
+                      class="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-700"
+                    />
+                    {{ day.short }}
+                  </label>
+                }
+              </div>
+            </div>
+
+            <div>
+              <label for="specificGoal" class="mb-1 block text-sm font-medium text-gray-700">¿Cuál es tu objetivo en concreto?</label>
+              <textarea
+                id="specificGoal"
+                formControlName="specificGoal"
+                rows="2"
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              ></textarea>
+              @if (experienceForm.controls.specificGoal.invalid && experienceForm.controls.specificGoal.touched) {
+                <p class="mt-1 text-xs text-red-600">Requerido.</p>
+              }
+            </div>
+          </div>
+        }
 
         <div class="mt-2 flex gap-3">
           <button

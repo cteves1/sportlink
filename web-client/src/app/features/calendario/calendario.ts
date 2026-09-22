@@ -8,11 +8,13 @@ import {
   LucideChevronRight,
   LucideCircleAlert,
   LucideCircleCheck,
+  LucideCirclePlus,
   LucideCircleX,
   LucideClipboardCheck,
   LucideClock,
   LucideLayoutGrid,
   LucideList,
+  LucideLock,
   LucideRotateCcw,
   LucideUserRound,
   LucideUsers,
@@ -21,6 +23,12 @@ import {
 import { CalendarService } from './calendar.service';
 import { Attendance, Presence, TrainingSession, UserRole } from './calendar.models';
 import { AuthService } from '../../core/auth/auth.service';
+import {
+  Category,
+  PlayersService,
+  categoryBadgeClasses,
+  categoryLabel,
+} from '../../core/players/players.service';
 import {
   WEEKDAY_LABELS,
   addDays,
@@ -51,11 +59,13 @@ interface CalendarCell {
     LucideChevronRight,
     LucideCircleAlert,
     LucideCircleCheck,
+    LucideCirclePlus,
     LucideCircleX,
     LucideClipboardCheck,
     LucideClock,
     LucideLayoutGrid,
     LucideList,
+    LucideLock,
     LucideRotateCcw,
     LucideUserRound,
     LucideUsers,
@@ -66,6 +76,7 @@ interface CalendarCell {
 export class Calendario implements OnInit {
   protected readonly calendarService = inject(CalendarService);
   private readonly authService = inject(AuthService);
+  private readonly playersService = inject(PlayersService);
   private readonly route = inject(ActivatedRoute);
 
   protected readonly weekdayLabels = WEEKDAY_LABELS;
@@ -169,9 +180,9 @@ export class Calendario implements OnInit {
     return this.selectedDaySessions().find((s) => s.id === id) ?? null;
   });
 
-  /** Próximos turnos del jugador simulado actual (Vista Jugador), ordenados por fecha. */
+  /** Próximos turnos del jugador actual (Vista Jugador), ordenados por fecha. */
   protected readonly myBookings = computed(() => {
-    const playerId = this.currentPlayerId();
+    const playerId = this.currentPlayer().id;
     return this.calendarService
       .sessions()
       .filter((session) => session.date.getTime() >= this.today.getTime())
@@ -189,6 +200,65 @@ export class Calendario implements OnInit {
       )
       .sort((a, b) => a.session.date.getTime() - b.session.date.getTime());
   });
+
+  // ------------------------------------------------------------------
+  // Reserva de cupos (Vista Jugador)
+  // ------------------------------------------------------------------
+
+  /**
+   * Jugador que actúa en la Vista Jugador: la cuenta autenticada si es un jugador real,
+   * o el jugador mock elegido en el selector cuando el entrenador simula la vista.
+   */
+  protected readonly currentPlayer = computed<{ id: number; name: string; category: number }>(
+    () => {
+      const authUser = this.authService.user();
+      if (authUser?.role === 'player' && authUser.athleteId !== undefined) {
+        const athlete = this.playersService
+          .athletes()
+          .find((candidate) => candidate.id === authUser.athleteId);
+        if (athlete) {
+          return {
+            id: athlete.id,
+            name: `${athlete.firstName} ${athlete.lastName}`,
+            category: athlete.category,
+          };
+        }
+        return { id: authUser.athleteId, name: authUser.name, category: 8 };
+      }
+
+      const playerId = this.currentPlayerId();
+      const mock = this.players.find((player) => player.id === playerId) ?? this.players[0];
+      return { id: mock.id, name: mock.name, category: mock.category };
+    },
+  );
+
+  /** Reserva del jugador actual en un turno, si existe (confirmada o cancelada). */
+  protected myAttendance(session: TrainingSession): Attendance | undefined {
+    return this.calendarService.attendanceFor(session, this.currentPlayer().id);
+  }
+
+  protected freeSlots(session: TrainingSession): number {
+    return this.calendarService.freeSlots(session);
+  }
+
+  protected isFull(session: TrainingSession): boolean {
+    return !this.calendarService.hasFreeSlot(session);
+  }
+
+  /** Un turno ya pasado no admite reservas ni cancelaciones. */
+  protected isPastSession(session: TrainingSession): boolean {
+    return atMidnight(session.date).getTime() < this.today.getTime();
+  }
+
+  /** El jugador puede ocupar un cupo si el turno es futuro, tiene lugar y todavía no reservó. */
+  protected canBook(session: TrainingSession): boolean {
+    if (this.isPastSession(session) || this.isFull(session)) return false;
+    return this.myAttendance(session)?.status !== 'confirmado';
+  }
+
+  protected bookSlot(session: TrainingSession): void {
+    this.calendarService.bookAttendance(session.id, this.currentPlayer());
+  }
 
   // ------------------------------------------------------------------
   // Registro de asistencia de hoy (Vista Entrenador)
@@ -345,6 +415,11 @@ export class Calendario implements OnInit {
     return cell.sessions.reduce((sum, s) => sum + s.capacity, 0);
   }
 
+  /** Cupos libres sumando todos los turnos del día, para destacar dónde hay lugar. */
+  protected dayTotalFreeSlots(cell: CalendarCell): number {
+    return cell.sessions.reduce((sum, s) => sum + this.freeSlots(s), 0);
+  }
+
   protected formatDayNumber(date: Date): number {
     return date.getDate();
   }
@@ -368,11 +443,19 @@ export class Calendario implements OnInit {
     return 'bg-brand-100 text-brand-700';
   }
 
-  /** Clases del badge de categoría: cat 1 destaca como élite, 2-3 azul, 4-5 verde, 6-8 gris (novato). */
+  /**
+   * Las asistencias y los jugadores mock guardan la categoría como `number` (demo sin
+   * backend), así que se acota al rango válido antes de delegar en los helpers compartidos.
+   */
+  private toCategory(category: number): Category {
+    return Math.min(9, Math.max(0, Math.trunc(category))) as Category;
+  }
+
+  protected categoryLabel(category: number): string {
+    return categoryLabel(this.toCategory(category));
+  }
+
   protected categoryBadgeClasses(category: number): string {
-    if (category === 1) return 'bg-amber-100 text-amber-800 ring-1 ring-amber-300';
-    if (category <= 3) return 'bg-blue-100 text-blue-700';
-    if (category <= 5) return 'bg-brand-100 text-brand-700';
-    return 'bg-gray-100 text-gray-600';
+    return categoryBadgeClasses(this.toCategory(category));
   }
 }

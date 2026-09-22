@@ -17,15 +17,23 @@ import {
   LucideTableProperties,
   LucideTarget,
   LucideTimer,
+  LucideTrendingUp,
   LucideTrophy,
   LucideUserPlus,
   LucideUsers,
 } from '@lucide/angular';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { Athlete as PlayerAthlete, PlayersService } from '../../core/players/players.service';
+import {
+  Athlete as PlayerAthlete,
+  PlayersService,
+  categoryLabel,
+  paddleGripLabel,
+} from '../../core/players/players.service';
 import { PlayerFormModal } from '../../shared/player-form-modal/player-form-modal';
+import { ProgressChart, ProgressSeries } from '../../shared/progress-chart/progress-chart';
 import { TimerModal } from '../../shared/timer-modal/timer-modal';
+import { PROGRESS_BY_RANGE, PROGRESS_RANGE_LABELS, ProgressRange } from './progress.mock';
 
 interface Athlete {
   id: number;
@@ -79,6 +87,7 @@ interface CoachNote {
   standalone: true,
   imports: [
     PlayerFormModal,
+    ProgressChart,
     TimerModal,
     LucideUsers,
     LucidePercent,
@@ -100,6 +109,7 @@ interface CoachNote {
     LucideHand,
     LucideMapPin,
     LucideShieldCheck,
+    LucideTrendingUp,
   ],
   templateUrl: './home.html',
 })
@@ -254,9 +264,15 @@ export class Home {
     this.currentAthlete()?.dominantHand === 'izquierda' ? 'Izquierda' : 'Derecha',
   );
 
+  /** Los principiantes no tienen paleta declarada: se muestra "Sin especificar". */
   protected readonly paddleGripLabel = computed(() =>
-    this.currentAthlete()?.paddleGrip === 'lapicero' ? 'Lapicero' : 'Clásica',
+    paddleGripLabel(this.currentAthlete()?.paddleGrip),
   );
+
+  protected readonly categoryLabel = computed(() => {
+    const category = this.currentAthlete()?.category;
+    return category === undefined ? '-' : categoryLabel(category);
+  });
 
   protected readonly coachNote = signal<CoachNote>({
     text: 'Mejorar la flexión de piernas en el desplazamiento lateral. En el topspin de revés, recuerda terminar el golpe hacia adelante y no tan arriba.',
@@ -288,4 +304,55 @@ export class Home {
       this.nextTraining().date,
     ),
   );
+
+  // ------------------------------------------------------------------
+  // Gráfico de avance del atleta (datos mockeados)
+  // ------------------------------------------------------------------
+
+  protected readonly progressRanges: ProgressRange[] = ['8-semanas', '6-meses'];
+  protected readonly progressRangeLabels = PROGRESS_RANGE_LABELS;
+  protected readonly selectedRange = signal<ProgressRange>('8-semanas');
+
+  private readonly progressPoints = computed(() => PROGRESS_BY_RANGE[this.selectedRange()]);
+
+  protected readonly progressLabels = computed(() =>
+    this.progressPoints().map((point) => point.label),
+  );
+
+  protected readonly progressSeries = computed<ProgressSeries[]>(() => {
+    const points = this.progressPoints();
+    return [
+      {
+        label: 'Progresión técnica',
+        data: points.map((point) => point.skillScore),
+        color: '#0d9488',
+        fill: true,
+      },
+      {
+        label: 'Asistencia (%)',
+        data: points.map((point) => point.attendanceRate),
+        color: '#f59e0b',
+      },
+    ];
+  });
+
+  /** Puntos de progresión técnica ganados en el rango elegido, para el resumen del encabezado. */
+  protected readonly skillGain = computed(() => {
+    const points = this.progressPoints();
+    if (points.length < 2) return 0;
+    return points[points.length - 1].skillScore - points[0].skillScore;
+  });
+
+  protected readonly rangeSummaryLabel = computed(
+    () => `en las últimas ${PROGRESS_RANGE_LABELS[this.selectedRange()]}`,
+  );
+
+  /** Horas de mesa acumuladas en el rango elegido. */
+  protected readonly rangeTableHours = computed(() =>
+    this.progressPoints().reduce((sum, point) => sum + point.tableHours, 0),
+  );
+
+  protected selectRange(range: ProgressRange): void {
+    this.selectedRange.set(range);
+  }
 }

@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { LucideBuilding2, LucideMessageCircle, LucideSwords, LucideUserRound } from '@lucide/angular';
-import { Athlete } from '../../../core/players/players.service';
+import { Athlete, categoryLabel } from '../../../core/players/players.service';
 import { AtletaService } from '../atleta.service';
 
 @Component({
@@ -13,6 +13,8 @@ export class AtletaInfo {
   private readonly atletaService = inject(AtletaService);
 
   readonly athlete = input.required<Athlete>();
+
+  protected readonly categoryLabel = categoryLabel;
 
   protected readonly profile = computed(() => this.atletaService.profileFor(this.athlete().id));
 

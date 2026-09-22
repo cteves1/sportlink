@@ -9,7 +9,7 @@ import {
   LucideTrophy,
   LucideUserRound,
 } from '@lucide/angular';
-import { PlayersService } from '../../core/players/players.service';
+import { PlayersService, categoryLabel, isEliteCategory } from '../../core/players/players.service';
 import { AtletaAsistencia } from './tabs/atleta-asistencia';
 import { AtletaCalendarioAnual } from './tabs/atleta-calendario-anual';
 import { AtletaCompetencia } from './tabs/atleta-competencia';
@@ -17,9 +17,6 @@ import { AtletaEntrenamiento } from './tabs/atleta-entrenamiento';
 import { AtletaInfo } from './tabs/atleta-info';
 
 type TabId = 'info' | 'entrenamiento' | 'asistencia' | 'competencia' | 'anual';
-
-/** Categoría reservada a los atletas de élite, los únicos con ficha de seguimiento. */
-const ELITE_CATEGORY = 1;
 
 @Component({
   selector: 'app-atleta-detalle',
@@ -48,6 +45,8 @@ export class AtletaDetalle {
     initialValue: this.route.snapshot.paramMap,
   });
 
+  protected readonly categoryLabel = categoryLabel;
+
   protected readonly athleteId = computed(() => Number(this.params().get('id')));
 
   protected readonly athlete = computed(() => {
@@ -56,8 +55,11 @@ export class AtletaDetalle {
     return this.playersService.athletes().find((candidate) => candidate.id === id);
   });
 
-  /** La ficha de seguimiento solo aplica a los atletas de categoría 1. */
-  protected readonly isElite = computed(() => this.athlete()?.category === ELITE_CATEGORY);
+  /** La ficha de seguimiento solo aplica a los atletas de Atleta Elite y categoría 1. */
+  protected readonly isElite = computed(() => {
+    const category = this.athlete()?.category;
+    return category !== undefined && isEliteCategory(category);
+  });
 
   protected readonly activeTab = signal<TabId>('info');
 

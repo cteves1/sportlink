@@ -122,9 +122,9 @@
     } @else {
       <div class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
         <p class="font-medium text-gray-700">
-          {{ athlete.firstName }} {{ athlete.lastName }} es categoría {{ athlete.category }}.
+          {{ athlete.firstName }} {{ athlete.lastName }} es {{ categoryLabel(athlete.category) }}.
         </p>
-        <p class="mt-1">La ficha de seguimiento está disponible solo para atletas de categoría 1 (élite).</p>
+        <p class="mt-1">La ficha de seguimiento está disponible solo para Atleta Elite y categoría 1.</p>
       </div>
     }
   } @else {

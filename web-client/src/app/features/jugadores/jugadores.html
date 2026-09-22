@@ -53,7 +53,7 @@
           [class.bg-gray-100]="selectedCategory() !== category"
           [class.text-gray-700]="selectedCategory() !== category"
         >
-          Cat {{ category }}
+          {{ categoryLabel(category) }}
         </button>
       }
     </div>
@@ -160,7 +160,7 @@
               class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
               [class]="categoryBadgeClasses(athlete.category)"
             >
-              Cat {{ athlete.category }}
+              {{ categoryLabel(athlete.category) }}
             </span>
           </div>
 
@@ -176,10 +176,27 @@
               <dd class="col-start-1">{{ formatBirthDate(athlete.birthDate) }}</dd>
               <dt class="font-medium text-gray-500">Mano hábil</dt>
               <dd class="col-start-1 capitalize">{{ athlete.dominantHand }}</dd>
+              <dt class="font-medium text-gray-500">Nivel</dt>
+              <dd class="col-start-1">{{ levelLabels[athlete.level] }}</dd>
               <dt class="font-medium text-gray-500">Tipo de paleta</dt>
-              <dd class="col-start-1">
-                {{ athlete.paddleGrip === 'clasica' ? 'Clásica' : 'Lapicero' }}
-              </dd>
+              <dd class="col-start-1">{{ paddleGripLabel(athlete.paddleGrip) }}</dd>
+              @if (athlete.level !== 'principiante') {
+                <dt class="font-medium text-gray-500">Gomas (derecha / revés)</dt>
+                <dd class="col-start-1">
+                  {{ rubberTypeLabel(athlete.rubberForehand) }} /
+                  {{ rubberTypeLabel(athlete.rubberBackhand) }}
+                </dd>
+                <dt class="font-medium text-gray-500">Estilo de juego</dt>
+                <dd class="col-start-1">{{ playingStyleLabel(athlete.playingStyle) }}</dd>
+              }
+              @if (athlete.level === 'avanzado') {
+                <dt class="font-medium text-gray-500">Club</dt>
+                <dd class="col-start-1">{{ athlete.club ?? 'Sin especificar' }}</dd>
+                <dt class="font-medium text-gray-500">Objetivo en concreto</dt>
+                <dd class="col-start-1">{{ athlete.specificGoal ?? 'Sin especificar' }}</dd>
+              }
+              <dt class="font-medium text-gray-500">Días de entrenamiento</dt>
+              <dd class="col-start-1">{{ trainingDaysLabel(athlete.trainingDays) }}</dd>
               <dt class="font-medium text-gray-500">Celular</dt>
               <dd class="col-start-1">{{ athlete.phone }}</dd>
               <dt class="font-medium text-gray-500">Usuario</dt>

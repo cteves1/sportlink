@@ -4,7 +4,11 @@
     <div>
       <h1 class="text-2xl font-semibold text-gray-900">Calendario</h1>
       <p class="text-sm text-gray-500">
-        Gestiona los turnos de entrenamiento y la asistencia de los jugadores.
+        @if (role() === 'entrenador') {
+          Gestiona los turnos de entrenamiento y la asistencia de los jugadores.
+        } @else {
+          Mira los turnos ocupados y reserva tu lugar en los que tienen cupo libre.
+        }
       </p>
     </div>
 
@@ -38,42 +42,63 @@
     }
   </header>
 
-  @if (role() === 'entrenador') {
-    <!-- ============ VISTA ENTRENADOR ============ -->
-
-    <!-- Controles de navegación y toggle mes/semana -->
+  <!-- Selector de jugador simulado (solo cuando el entrenador prueba la Vista Jugador) -->
+  @if (role() === 'jugador' && !isPlayerAccount()) {
     <section
-      class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+      class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
     >
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          (click)="goToPrevious()"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
-          aria-label="Periodo anterior"
-        >
-          <svg lucideChevronLeft [size]="18" class="block"></svg>
-        </button>
-        <span class="min-w-[10rem] text-center text-sm font-semibold capitalize text-gray-900">
-          {{ viewMode() === 'mes' ? monthLabel() : weekRangeLabel() }}
-        </span>
-        <button
-          type="button"
-          (click)="goToNext()"
-          class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
-          aria-label="Periodo siguiente"
-        >
-          <svg lucideChevronRight [size]="18" class="block"></svg>
-        </button>
-        <button
-          type="button"
-          (click)="goToday()"
-          class="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Hoy
-        </button>
-      </div>
+      <label for="playerSelect" class="text-sm font-medium text-gray-700"
+        >Iniciar sesión como</label
+      >
+      <select
+        id="playerSelect"
+        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700 sm:w-64"
+        [ngModel]="currentPlayerId()"
+        (ngModelChange)="setCurrentPlayer($event)"
+      >
+        @for (player of players; track player.id) {
+          <option [value]="player.id">
+            {{ player.name }} ({{ categoryLabel(player.category) }})
+          </option>
+        }
+      </select>
+    </section>
+  }
 
+  <!-- Controles de navegación y toggle mes/semana (ambos roles) -->
+  <section
+    class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
+  >
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="goToPrevious()"
+        class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+        aria-label="Periodo anterior"
+      >
+        <svg lucideChevronLeft [size]="18" class="block"></svg>
+      </button>
+      <span class="min-w-[10rem] text-center text-sm font-semibold capitalize text-gray-900">
+        {{ viewMode() === 'mes' ? monthLabel() : weekRangeLabel() }}
+      </span>
+      <button
+        type="button"
+        (click)="goToNext()"
+        class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+        aria-label="Periodo siguiente"
+      >
+        <svg lucideChevronRight [size]="18" class="block"></svg>
+      </button>
+      <button
+        type="button"
+        (click)="goToday()"
+        class="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+      >
+        Hoy
+      </button>
+    </div>
+
+    @if (role() === 'entrenador') {
       <button
         type="button"
         (click)="openTodayAttendance()"
@@ -82,140 +107,153 @@
         <svg lucideClipboardCheck [size]="16" class="block"></svg>
         Registrar asistencia de hoy
       </button>
+    }
 
-      <div class="inline-flex items-center gap-1 rounded-full bg-gray-100 p-1">
-        <button
-          type="button"
-          (click)="setViewMode('mes')"
-          class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
-          [class.bg-white]="viewMode() === 'mes'"
-          [class.shadow-sm]="viewMode() === 'mes'"
-          [class.text-gray-900]="viewMode() === 'mes'"
-          [class.text-gray-500]="viewMode() !== 'mes'"
-        >
-          <svg lucideLayoutGrid [size]="14" class="block"></svg>
-          Mes
-        </button>
-        <button
-          type="button"
-          (click)="setViewMode('semana')"
-          class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
-          [class.bg-white]="viewMode() === 'semana'"
-          [class.shadow-sm]="viewMode() === 'semana'"
-          [class.text-gray-900]="viewMode() === 'semana'"
-          [class.text-gray-500]="viewMode() !== 'semana'"
-        >
-          <svg lucideList [size]="14" class="block"></svg>
-          Semana
-        </button>
-      </div>
-    </section>
-
-    <!-- Cuadrícula del calendario -->
-    <section class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
-      <div class="mb-2 grid grid-cols-7 gap-2 text-center text-xs font-medium text-gray-400">
-        @for (label of weekdayLabels; track label) {
-          <div>{{ label }}</div>
-        }
-      </div>
-
-      <div class="grid grid-cols-7 gap-2">
-        @for (cell of activeGrid(); track cell.date.getTime()) {
-          <button
-            type="button"
-            (click)="selectDay(cell.date)"
-            class="flex flex-col items-start gap-1.5 rounded-lg border p-2 text-left transition-colors"
-            [class.min-h-24]="viewMode() === 'mes'"
-            [class.min-h-32]="viewMode() === 'semana'"
-            [class.border-brand-600]="isSelectedDay(cell.date)"
-            [class.ring-1]="isSelectedDay(cell.date)"
-            [class.ring-brand-600]="isSelectedDay(cell.date)"
-            [class.border-gray-200]="!isSelectedDay(cell.date)"
-            [class.bg-gray-50]="!cell.inCurrentPeriod"
-            [class.hover:border-brand-400]="cell.inCurrentPeriod"
-          >
-            <span
-              class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold"
-              [class.text-gray-300]="!cell.inCurrentPeriod"
-              [class.text-gray-700]="cell.inCurrentPeriod && !cell.isToday"
-              [class.bg-brand-600]="cell.isToday"
-              [class.text-white]="cell.isToday"
-            >
-              {{ formatDayNumber(cell.date) }}
-            </span>
-
-            @if (cell.sessions.length > 0) {
-              <span
-                class="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                [class]="dayOccupancyClasses(cell)"
-              >
-                {{ cell.sessions.length }} {{ cell.sessions.length === 1 ? 'turno' : 'turnos' }}
-              </span>
-              <span class="text-[11px] text-gray-500"
-                >{{ dayTotalConfirmed(cell) }}/{{ dayTotalCapacity(cell) }} cupos</span
-              >
-            }
-          </button>
-        }
-      </div>
-    </section>
-
-    <!-- Panel lateral de detalle del día -->
-    @if (selectedDate()) {
-      <div class="fixed inset-0 z-40 bg-black/30" (click)="closeDetailPanel()"></div>
-      <aside
-        class="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col overflow-y-auto bg-white p-5 shadow-xl"
+    <div class="inline-flex items-center gap-1 rounded-full bg-gray-100 p-1">
+      <button
+        type="button"
+        (click)="setViewMode('mes')"
+        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
+        [class.bg-white]="viewMode() === 'mes'"
+        [class.shadow-sm]="viewMode() === 'mes'"
+        [class.text-gray-900]="viewMode() === 'mes'"
+        [class.text-gray-500]="viewMode() !== 'mes'"
       >
-        <div class="mb-4 flex items-start justify-between gap-2">
-          <div>
-            <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
-              Sesiones del día
-            </p>
-            <h2 class="text-lg font-semibold capitalize text-gray-900">
-              {{ formatFullDate(selectedDate()!) }}
-            </h2>
-          </div>
-          <button
-            type="button"
-            (click)="closeDetailPanel()"
-            class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        <svg lucideLayoutGrid [size]="14" class="block"></svg>
+        Mes
+      </button>
+      <button
+        type="button"
+        (click)="setViewMode('semana')"
+        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
+        [class.bg-white]="viewMode() === 'semana'"
+        [class.shadow-sm]="viewMode() === 'semana'"
+        [class.text-gray-900]="viewMode() === 'semana'"
+        [class.text-gray-500]="viewMode() !== 'semana'"
+      >
+        <svg lucideList [size]="14" class="block"></svg>
+        Semana
+      </button>
+    </div>
+  </section>
+
+  <!-- Cuadrícula del calendario (ambos roles) -->
+  <section class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
+    <div class="mb-2 grid grid-cols-7 gap-2 text-center text-xs font-medium text-gray-400">
+      @for (label of weekdayLabels; track label) {
+        <div>{{ label }}</div>
+      }
+    </div>
+
+    <div class="grid grid-cols-7 gap-2">
+      @for (cell of activeGrid(); track cell.date.getTime()) {
+        <button
+          type="button"
+          (click)="selectDay(cell.date)"
+          class="flex flex-col items-start gap-1.5 rounded-lg border p-2 text-left transition-colors"
+          [class.min-h-24]="viewMode() === 'mes'"
+          [class.min-h-32]="viewMode() === 'semana'"
+          [class.border-brand-600]="isSelectedDay(cell.date)"
+          [class.ring-1]="isSelectedDay(cell.date)"
+          [class.ring-brand-600]="isSelectedDay(cell.date)"
+          [class.border-gray-200]="!isSelectedDay(cell.date)"
+          [class.bg-gray-50]="!cell.inCurrentPeriod"
+          [class.hover:border-brand-400]="cell.inCurrentPeriod"
+        >
+          <span
+            class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold"
+            [class.text-gray-300]="!cell.inCurrentPeriod"
+            [class.text-gray-700]="cell.inCurrentPeriod && !cell.isToday"
+            [class.bg-brand-600]="cell.isToday"
+            [class.text-white]="cell.isToday"
           >
-            <svg lucideX [size]="20" class="block"></svg>
-          </button>
+            {{ formatDayNumber(cell.date) }}
+          </span>
+
+          @if (cell.sessions.length > 0) {
+            <span
+              class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+              [class]="dayOccupancyClasses(cell)"
+            >
+              {{ cell.sessions.length }} {{ cell.sessions.length === 1 ? 'turno' : 'turnos' }}
+            </span>
+            @if (dayTotalFreeSlots(cell) > 0) {
+              <span class="text-[11px] font-medium text-brand-700">
+                {{ dayTotalFreeSlots(cell) }}
+                {{ dayTotalFreeSlots(cell) === 1 ? 'cupo libre' : 'cupos libres' }}
+              </span>
+            } @else {
+              <span class="text-[11px] font-medium text-red-600">Completo</span>
+            }
+            <span class="text-[11px] text-gray-500"
+              >{{ dayTotalConfirmed(cell) }}/{{ dayTotalCapacity(cell) }} cupos</span
+            >
+          }
+        </button>
+      }
+    </div>
+  </section>
+
+  <!-- Panel lateral de detalle del día (contenido según el rol) -->
+  @if (selectedDate()) {
+    <div class="fixed inset-0 z-40 bg-black/30" (click)="closeDetailPanel()"></div>
+    <aside
+      class="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col overflow-y-auto bg-white p-5 shadow-xl"
+    >
+      <div class="mb-4 flex items-start justify-between gap-2">
+        <div>
+          <p class="text-xs font-medium uppercase tracking-wide text-gray-400">Sesiones del día</p>
+          <h2 class="text-lg font-semibold capitalize text-gray-900">
+            {{ formatFullDate(selectedDate()!) }}
+          </h2>
         </div>
+        <button
+          type="button"
+          (click)="closeDetailPanel()"
+          class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        >
+          <svg lucideX [size]="20" class="block"></svg>
+        </button>
+      </div>
 
-        @if (selectedDaySessions().length === 0) {
-          <p
-            class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500"
-          >
-            No hay turnos programados este día.
-          </p>
-        } @else {
-          <div class="flex flex-col gap-3">
-            @for (session of selectedDaySessions(); track session.id) {
-              <div class="rounded-lg border border-gray-200">
-                <button
-                  type="button"
-                  (click)="toggleSession(session.id)"
-                  class="flex w-full items-center justify-between gap-2 p-3 text-left"
-                >
-                  <div class="flex items-center gap-2">
-                    <svg lucideClock [size]="16" class="block text-gray-400"></svg>
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">{{ session.shiftLabel }}</p>
-                      <p class="text-xs text-gray-500">
-                        {{ session.startTime }} - {{ session.endTime }}
-                      </p>
-                    </div>
+      @if (selectedDaySessions().length === 0) {
+        <p
+          class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500"
+        >
+          No hay turnos programados este día.
+        </p>
+      } @else {
+        <div class="flex flex-col gap-3">
+          @for (session of selectedDaySessions(); track session.id) {
+            <div class="rounded-lg border border-gray-200">
+              <button
+                type="button"
+                (click)="toggleSession(session.id)"
+                class="flex w-full items-center justify-between gap-2 p-3 text-left"
+              >
+                <div class="flex items-center gap-2">
+                  <svg lucideClock [size]="16" class="block text-gray-400"></svg>
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">{{ session.shiftLabel }}</p>
+                    <p class="text-xs text-gray-500">
+                      {{ session.startTime }} - {{ session.endTime }}
+                    </p>
                   </div>
-                  <span
-                    class="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700"
-                  >
-                    {{ confirmedCount(session) }}/{{ session.capacity }} cupos
-                  </span>
-                </button>
+                </div>
+                <span
+                  class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
+                  [class.bg-red-100]="isFull(session)"
+                  [class.text-red-700]="isFull(session)"
+                  [class.bg-gray-100]="!isFull(session)"
+                  [class.text-gray-700]="!isFull(session)"
+                >
+                  {{ confirmedCount(session) }}/{{ session.capacity }} cupos
+                </span>
+              </button>
 
-                @if (selectedSessionId() === session.id) {
+              @if (selectedSessionId() === session.id) {
+                @if (role() === 'entrenador') {
+                  <!-- Vista Entrenador: estado de reserva y presencia registrada -->
                   <ul class="flex flex-col gap-2 border-t border-gray-100 p-3">
                     @for (attendance of session.attendances; track attendance.id) {
                       <li class="flex items-center justify-between gap-2 text-sm">
@@ -232,7 +270,7 @@
                             class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
                             [class]="categoryBadgeClasses(attendance.category)"
                           >
-                            Cat {{ attendance.category }}
+                            {{ categoryLabel(attendance.category) }}
                           </span>
                         </div>
 
@@ -272,162 +310,249 @@
                       </li>
                     }
                   </ul>
-                }
-              </div>
-            }
-          </div>
-        }
-      </aside>
-    }
-
-    <!-- Registro de asistencia del día de hoy -->
-    @if (attendanceOpen()) {
-      <div
-        class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
-      >
-        <div class="my-auto w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
-          <div class="mb-4 flex items-start justify-between gap-2">
-            <div>
-              <h2 class="text-lg font-semibold text-gray-900">Registrar asistencia</h2>
-              <p class="text-sm capitalize text-gray-500">{{ todayLabel() }}</p>
-            </div>
-            <button
-              type="button"
-              (click)="closeAttendance()"
-              class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              aria-label="Cerrar registro de asistencia"
-            >
-              <svg lucideX [size]="20" class="block"></svg>
-            </button>
-          </div>
-
-          @if (todaySessions().length === 0) {
-            <p
-              class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500"
-            >
-              Hoy no hay turnos programados.
-            </p>
-          } @else {
-            <!-- Selector de turno -->
-            <div class="mb-4 flex flex-wrap gap-2">
-              @for (session of todaySessions(); track session.id) {
-                <button
-                  type="button"
-                  (click)="selectAttendanceSession(session.id)"
-                  class="rounded-full border px-3 py-1.5 text-xs font-medium"
-                  [class.border-brand-600]="attendanceSessionId() === session.id"
-                  [class.bg-brand-50]="attendanceSessionId() === session.id"
-                  [class.text-brand-700]="attendanceSessionId() === session.id"
-                  [class.border-gray-300]="attendanceSessionId() !== session.id"
-                  [class.text-gray-600]="attendanceSessionId() !== session.id"
-                >
-                  {{ session.shiftLabel }} · {{ session.startTime }}
-                </button>
-              }
-            </div>
-
-            @if (attendanceSession(); as session) {
-              <div class="mb-3 flex items-center justify-between text-xs text-gray-500">
-                <span class="inline-flex items-center gap-1.5">
-                  <svg lucideClock [size]="14" class="block text-gray-400"></svg>
-                  {{ session.startTime }} - {{ session.endTime }}
-                </span>
-                <span class="font-semibold text-gray-700">
-                  {{ presentCount(session) }}/{{ session.attendances.length }} presentes
-                </span>
-              </div>
-
-              @if (session.attendances.length === 0) {
-                <p
-                  class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500"
-                >
-                  No hay jugadores inscriptos en este turno.
-                </p>
-              } @else {
-                <ul
-                  class="flex flex-col divide-y divide-gray-100 rounded-lg border border-gray-200"
-                >
-                  @for (attendance of session.attendances; track attendance.id) {
-                    <li class="flex items-center justify-between gap-3 px-3 py-2.5">
-                      <div class="flex min-w-0 items-center gap-2">
-                        <span class="truncate text-sm font-medium text-gray-900">{{
-                          attendance.playerName
-                        }}</span>
-                        <span
-                          class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                          [class]="categoryBadgeClasses(attendance.category)"
-                        >
-                          Cat {{ attendance.category }}
+                } @else {
+                  <!-- Vista Jugador: quiénes ocupan el turno y la acción disponible -->
+                  <div class="flex flex-col gap-3 border-t border-gray-100 p-3">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="font-medium text-gray-500">Jugadores anotados</span>
+                      @if (isFull(session)) {
+                        <span class="font-semibold text-red-600">Turno completo</span>
+                      } @else {
+                        <span class="font-semibold text-brand-700">
+                          {{ freeSlots(session) }}
+                          {{ freeSlots(session) === 1 ? 'cupo libre' : 'cupos libres' }}
                         </span>
-                      </div>
+                      }
+                    </div>
 
-                      <div class="flex shrink-0 items-center gap-2">
+                    @if (confirmedCount(session) === 0) {
+                      <p class="text-xs text-gray-500">Todavía no hay nadie anotado.</p>
+                    } @else {
+                      <ul class="flex flex-col gap-1.5">
+                        @for (attendance of session.attendances; track attendance.id) {
+                          @if (attendance.status === 'confirmado') {
+                            <li class="flex items-center gap-2 text-sm">
+                              <span class="text-gray-800">{{ attendance.playerName }}</span>
+                              <span
+                                class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                [class]="categoryBadgeClasses(attendance.category)"
+                              >
+                                {{ categoryLabel(attendance.category) }}
+                              </span>
+                            </li>
+                          }
+                        }
+                      </ul>
+                    }
+
+                    @if (isPastSession(session)) {
+                      <p class="text-xs text-gray-400">Este turno ya pasó.</p>
+                    } @else if (myAttendance(session); as mine) {
+                      @if (mine.status === 'confirmado') {
+                        @if (isConfirming(session.id, mine.id)) {
+                          <div class="flex flex-col gap-2 rounded-lg bg-red-50 p-3">
+                            <p class="flex items-center gap-1.5 text-xs font-medium text-red-700">
+                              <svg lucideCircleAlert [size]="14" class="block"></svg>
+                              ¿Confirmas que no asistirás a este turno?
+                            </p>
+                            <div class="flex gap-2">
+                              <button
+                                type="button"
+                                (click)="confirmCancel(session.id, mine.id)"
+                                class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                              >
+                                Sí, cancelar
+                              </button>
+                              <button
+                                type="button"
+                                (click)="dismissCancel()"
+                                class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                              >
+                                No
+                              </button>
+                            </div>
+                          </div>
+                        } @else {
+                          <div class="flex flex-col gap-2">
+                            <span
+                              class="inline-flex items-center gap-1 self-start rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700"
+                            >
+                              <svg lucideCircleCheck [size]="12" class="block"></svg>
+                              Ya tienes tu cupo reservado
+                            </span>
+                            <button
+                              type="button"
+                              (click)="requestCancel(session.id, mine.id)"
+                              class="inline-flex items-center justify-center gap-2 self-start rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100"
+                            >
+                              🔴 Avisar que Falto (Cancelar Turno)
+                            </button>
+                          </div>
+                        }
+                      } @else {
                         <button
                           type="button"
-                          (click)="setPresence(attendance, 'presente')"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors"
-                          [class.border-brand-600]="attendance.presence === 'presente'"
-                          [class.bg-brand-600]="attendance.presence === 'presente'"
-                          [class.text-white]="attendance.presence === 'presente'"
-                          [class.border-gray-300]="attendance.presence !== 'presente'"
-                          [class.text-gray-400]="attendance.presence !== 'presente'"
-                          [attr.aria-label]="'Marcar presente a ' + attendance.playerName"
+                          (click)="undoCancel(session.id, mine.id)"
+                          class="inline-flex items-center justify-center gap-2 self-start rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
                         >
-                          <svg lucideCheck [size]="16" class="block"></svg>
+                          <svg lucideRotateCcw [size]="14" class="block"></svg>
+                          Deshacer cancelación
                         </button>
-                        <button
-                          type="button"
-                          (click)="setPresence(attendance, 'ausente')"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors"
-                          [class.border-red-600]="attendance.presence === 'ausente'"
-                          [class.bg-red-600]="attendance.presence === 'ausente'"
-                          [class.text-white]="attendance.presence === 'ausente'"
-                          [class.border-gray-300]="attendance.presence !== 'ausente'"
-                          [class.text-gray-400]="attendance.presence !== 'ausente'"
-                          [attr.aria-label]="'Marcar ausente a ' + attendance.playerName"
-                        >
-                          <svg lucideX [size]="16" class="block"></svg>
-                        </button>
-                      </div>
-                    </li>
-                  }
-                </ul>
+                      }
+                    } @else if (canBook(session)) {
+                      <button
+                        type="button"
+                        (click)="bookSlot(session)"
+                        class="inline-flex items-center justify-center gap-2 self-start rounded-md bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+                      >
+                        <svg lucideCirclePlus [size]="14" class="block"></svg>
+                        Ocupar cupo
+                      </button>
+                    } @else {
+                      <span
+                        class="inline-flex items-center gap-1.5 self-start rounded-md bg-gray-100 px-3 py-2 text-xs font-medium text-gray-500"
+                      >
+                        <svg lucideLock [size]="14" class="block"></svg>
+                        Turno completo
+                      </span>
+                    }
+                  </div>
+                }
               }
-            }
+            </div>
           }
+        </div>
+      }
+    </aside>
+  }
 
+  <!-- Registro de asistencia del día de hoy (Vista Entrenador) -->
+  @if (attendanceOpen()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+    >
+      <div class="my-auto w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+        <div class="mb-4 flex items-start justify-between gap-2">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900">Registrar asistencia</h2>
+            <p class="text-sm capitalize text-gray-500">{{ todayLabel() }}</p>
+          </div>
           <button
             type="button"
             (click)="closeAttendance()"
-            class="mt-5 w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+            class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            aria-label="Cerrar registro de asistencia"
           >
-            Listo
+            <svg lucideX [size]="20" class="block"></svg>
           </button>
         </div>
-      </div>
-    }
-  } @else {
-    <!-- ============ VISTA JUGADOR ============ -->
-    @if (!isPlayerAccount()) {
-      <section
-        class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
-      >
-        <label for="playerSelect" class="text-sm font-medium text-gray-700"
-          >Iniciar sesión como</label
-        >
-        <select
-          id="playerSelect"
-          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700 sm:w-64"
-          [ngModel]="currentPlayerId()"
-          (ngModelChange)="setCurrentPlayer($event)"
-        >
-          @for (player of players; track player.id) {
-            <option [value]="player.id">{{ player.name }} (Cat {{ player.category }})</option>
-          }
-        </select>
-      </section>
-    }
 
+        @if (todaySessions().length === 0) {
+          <p
+            class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500"
+          >
+            Hoy no hay turnos programados.
+          </p>
+        } @else {
+          <!-- Selector de turno -->
+          <div class="mb-4 flex flex-wrap gap-2">
+            @for (session of todaySessions(); track session.id) {
+              <button
+                type="button"
+                (click)="selectAttendanceSession(session.id)"
+                class="rounded-full border px-3 py-1.5 text-xs font-medium"
+                [class.border-brand-600]="attendanceSessionId() === session.id"
+                [class.bg-brand-50]="attendanceSessionId() === session.id"
+                [class.text-brand-700]="attendanceSessionId() === session.id"
+                [class.border-gray-300]="attendanceSessionId() !== session.id"
+                [class.text-gray-600]="attendanceSessionId() !== session.id"
+              >
+                {{ session.shiftLabel }} · {{ session.startTime }}
+              </button>
+            }
+          </div>
+
+          @if (attendanceSession(); as session) {
+            <div class="mb-3 flex items-center justify-between text-xs text-gray-500">
+              <span class="inline-flex items-center gap-1.5">
+                <svg lucideClock [size]="14" class="block text-gray-400"></svg>
+                {{ session.startTime }} - {{ session.endTime }}
+              </span>
+              <span class="font-semibold text-gray-700">
+                {{ presentCount(session) }}/{{ session.attendances.length }} presentes
+              </span>
+            </div>
+
+            @if (session.attendances.length === 0) {
+              <p
+                class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500"
+              >
+                No hay jugadores inscriptos en este turno.
+              </p>
+            } @else {
+              <ul class="flex flex-col divide-y divide-gray-100 rounded-lg border border-gray-200">
+                @for (attendance of session.attendances; track attendance.id) {
+                  <li class="flex items-center justify-between gap-3 px-3 py-2.5">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <span class="truncate text-sm font-medium text-gray-900">{{
+                        attendance.playerName
+                      }}</span>
+                      <span
+                        class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                        [class]="categoryBadgeClasses(attendance.category)"
+                      >
+                        {{ categoryLabel(attendance.category) }}
+                      </span>
+                    </div>
+
+                    <div class="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        (click)="setPresence(attendance, 'presente')"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors"
+                        [class.border-brand-600]="attendance.presence === 'presente'"
+                        [class.bg-brand-600]="attendance.presence === 'presente'"
+                        [class.text-white]="attendance.presence === 'presente'"
+                        [class.border-gray-300]="attendance.presence !== 'presente'"
+                        [class.text-gray-400]="attendance.presence !== 'presente'"
+                        [attr.aria-label]="'Marcar presente a ' + attendance.playerName"
+                      >
+                        <svg lucideCheck [size]="16" class="block"></svg>
+                      </button>
+                      <button
+                        type="button"
+                        (click)="setPresence(attendance, 'ausente')"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors"
+                        [class.border-red-600]="attendance.presence === 'ausente'"
+                        [class.bg-red-600]="attendance.presence === 'ausente'"
+                        [class.text-white]="attendance.presence === 'ausente'"
+                        [class.border-gray-300]="attendance.presence !== 'ausente'"
+                        [class.text-gray-400]="attendance.presence !== 'ausente'"
+                        [attr.aria-label]="'Marcar ausente a ' + attendance.playerName"
+                      >
+                        <svg lucideX [size]="16" class="block"></svg>
+                      </button>
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          }
+        }
+
+        <button
+          type="button"
+          (click)="closeAttendance()"
+          class="mt-5 w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          Listo
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Próximos turnos del jugador (Vista Jugador) -->
+  @if (role() === 'jugador') {
     <section class="flex flex-col gap-3">
       <h2 class="text-sm font-semibold text-gray-900">Mis Próximos Entrenamientos</h2>
 
@@ -435,7 +560,7 @@
         <div
           class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500"
         >
-          No tienes turnos próximos asignados.
+          No tienes turnos próximos asignados. Elige un día del calendario y ocupa un cupo libre.
         </div>
       } @else {
         @for (booking of myBookings(); track booking.session.id) {
