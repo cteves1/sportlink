@@ -18,6 +18,8 @@ import {
   LucideList,
   LucideLock,
   LucideRotateCcw,
+  LucideTrash2,
+  LucideUserMinus,
   LucideUserPlus,
   LucideUserRound,
   LucideUsers,
@@ -80,6 +82,8 @@ interface CalendarCell {
     LucideList,
     LucideLock,
     LucideRotateCcw,
+    LucideTrash2,
+    LucideUserMinus,
     LucideUserPlus,
     LucideUserRound,
     LucideUsers,
@@ -442,12 +446,23 @@ export class Calendario implements OnInit {
   protected selectDay(date: Date): void {
     const current = this.selectedDate();
     this.selectedSessionId.set(null);
+    this.resetDayPanelForms();
     this.selectedDate.set(current && isSameDay(current, date) ? null : date);
   }
 
   protected closeDetailPanel(): void {
     this.selectedDate.set(null);
     this.selectedSessionId.set(null);
+    this.resetDayPanelForms();
+  }
+
+  /** Cierra los formularios y confirmaciones abiertos dentro del panel del día. */
+  private resetDayPanelForms(): void {
+    this.newSessionOpen.set(false);
+    this.newSessionError.set(null);
+    this.addPlayerSessionId.set(null);
+    this.confirmingSessionDeleteId.set(null);
+    this.confirmingKey.set(null);
   }
 
   protected toggleSession(sessionId: number): void {
@@ -564,6 +579,83 @@ export class Calendario implements OnInit {
   protected addPlayerToSession(sessionId: number, athlete: Athlete): void {
     this.calendarService.addAthleteToSession(sessionId, athlete);
     this.addPlayerSessionId.set(null);
+  }
+
+  // ------------------------------------------------------------------
+  // Turno puntual en un día concreto (Vista Entrenador)
+  // ------------------------------------------------------------------
+
+  protected readonly newSessionOpen = signal(false);
+  protected readonly newSessionLabel = signal('Turno particular');
+  protected readonly newSessionStart = signal('17:00');
+  protected readonly newSessionEnd = signal('18:00');
+  protected readonly newSessionUnlimited = signal(false);
+  protected readonly newSessionCapacity = signal(1);
+  protected readonly newSessionError = signal<string | null>(null);
+
+  protected openNewSession(): void {
+    this.newSessionError.set(null);
+    this.newSessionOpen.set(true);
+  }
+
+  protected closeNewSession(): void {
+    this.newSessionOpen.set(false);
+    this.newSessionError.set(null);
+  }
+
+  /** Crea el turno suelto en el día abierto en el panel y lo deja seleccionado. */
+  protected createSession(): void {
+    const date = this.selectedDate();
+    if (!date) return;
+
+    const label = this.newSessionLabel().trim();
+    if (!label) {
+      this.newSessionError.set('Ponle un nombre al turno.');
+      return;
+    }
+    if (this.newSessionEnd() <= this.newSessionStart()) {
+      this.newSessionError.set('La hora de fin debe ser posterior a la de inicio.');
+      return;
+    }
+
+    const created = this.calendarService.addSessionOn(date, {
+      label,
+      startTime: this.newSessionStart(),
+      endTime: this.newSessionEnd(),
+      capacity: this.newSessionUnlimited() ? null : Math.max(1, Number(this.newSessionCapacity())),
+      playerIds: [],
+    });
+
+    if (!created) {
+      this.newSessionError.set('Ya hay un turno que arranca a esa hora este día.');
+      return;
+    }
+
+    this.newSessionOpen.set(false);
+    this.newSessionError.set(null);
+    this.selectedSessionId.set(created.id);
+    this.addPlayerSessionId.set(created.id);
+  }
+
+  /** Solo se pueden borrar los turnos sueltos: los de la jornada se quitan desde la configuración. */
+  protected isOneOffSession(session: TrainingSession): boolean {
+    return session.templateId === null;
+  }
+
+  protected readonly confirmingSessionDeleteId = signal<number | null>(null);
+
+  protected requestSessionDelete(sessionId: number): void {
+    this.confirmingSessionDeleteId.set(sessionId);
+  }
+
+  protected dismissSessionDelete(): void {
+    this.confirmingSessionDeleteId.set(null);
+  }
+
+  protected confirmSessionDelete(sessionId: number): void {
+    this.calendarService.removeSession(sessionId);
+    this.confirmingSessionDeleteId.set(null);
+    if (this.selectedSessionId() === sessionId) this.selectedSessionId.set(null);
   }
 
   protected confirmedCount(session: TrainingSession): number {

@@ -42,6 +42,15 @@ function dropLegacyStorage(): void {
 /** Datos que el entrenador define de un turno; el id lo asigna el servicio. */
 export type ShiftTemplateInput = Omit<ShiftTemplate, 'id'>;
 
+/** Turno suelto que no se repite: se crea directo sobre un día del calendario. */
+export interface OneOffSessionInput {
+  label: string;
+  startTime: string;
+  endTime: string;
+  capacity: number | null;
+  playerIds: number[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class CalendarService {
   private readonly playersService = inject(PlayersService);
@@ -169,10 +178,59 @@ export class CalendarService {
     });
   }
 
+  /**
+   * Crea un turno puntual en una fecha concreta (por ejemplo, una particular acordada con un
+   * jugador), sin plantilla detrás. Devuelve `null` si ya hay un turno a esa misma hora ese
+   * día, para no pisar el turno existente ni bloquear la generación de la jornada.
+   */
+  addSessionOn(date: Date, input: OneOffSessionInput): TrainingSession | null {
+    const day = atMidnight(date);
+    const key = dateKey(day);
+    const clash = this.sessions().some(
+      (session) => dateKey(session.date) === key && session.startTime === input.startTime,
+    );
+    if (clash) return null;
+
+    const session: TrainingSession = {
+      id: Math.max(0, ...this.sessions().map((candidate) => candidate.id)) + 1,
+      date: day,
+      shiftLabel: input.label,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      capacity: input.capacity,
+      attendances: this.attendancesOf(input.playerIds),
+      templateId: null,
+    };
+
+    this.sessions.update((sessions) => [...sessions, session]);
+    this.persist();
+    return session;
+  }
+
+  /** Elimina un turno puntual (los generados por una plantilla se quitan desde la configuración). */
+  removeSession(sessionId: number): void {
+    this.sessions.update((sessions) => sessions.filter((session) => session.id !== sessionId));
+    this.persist();
+  }
+
   /** Sesión concreta a partir de una plantilla, con sus jugadores fijos ya confirmados. */
   private sessionFromTemplate(id: number, template: ShiftTemplate, date: Date): TrainingSession {
+    return {
+      id,
+      date,
+      shiftLabel: template.label,
+      startTime: template.startTime,
+      endTime: template.endTime,
+      capacity: template.capacity,
+      attendances: this.attendancesOf(template.playerIds),
+      templateId: template.id,
+    };
+  }
+
+  /** Asistencias confirmadas de los jugadores indicados; los que ya no existen se ignoran. */
+  private attendancesOf(playerIds: readonly number[]): Attendance[] {
     const athletes = this.playersService.athletes();
-    const attendances: Attendance[] = template.playerIds
+    return playerIds
       .map((playerId) => athletes.find((athlete) => athlete.id === playerId))
       .filter((athlete): athlete is Athlete => athlete !== undefined)
       .map((athlete, index) => ({
@@ -183,17 +241,6 @@ export class CalendarService {
         status: 'confirmado' as const,
         presence: null,
       }));
-
-    return {
-      id,
-      date,
-      shiftLabel: template.label,
-      startTime: template.startTime,
-      endTime: template.endTime,
-      capacity: template.capacity,
-      attendances,
-      templateId: template.id,
-    };
   }
 
   /** Descarta las sesiones de hoy en adelante generadas por una plantilla que cambió o se borró. */

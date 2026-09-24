@@ -373,57 +373,109 @@
                     }
                     <ul class="flex flex-col gap-2">
                       @for (attendance of session.attendances; track attendance.id) {
-                        <li class="flex items-center justify-between gap-2 text-sm">
-                          <div class="flex items-center gap-2">
-                            <span
-                              class="font-medium"
-                              [class.text-gray-900]="attendance.status === 'confirmado'"
-                              [class.text-red-600]="attendance.status === 'ausente'"
-                              [class.line-through]="attendance.status === 'ausente'"
-                            >
-                              {{ attendance.playerName }}
-                            </span>
-                            <span
-                              class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                              [class]="categoryBadgeClasses(attendance.category)"
-                            >
-                              {{ categoryLabel(attendance.category) }}
-                            </span>
+                        <li class="flex flex-col gap-2 text-sm">
+                          <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                              <span
+                                class="font-medium"
+                                [class.text-gray-900]="attendance.status === 'confirmado'"
+                                [class.text-red-600]="attendance.status === 'ausente'"
+                                [class.line-through]="attendance.status === 'ausente'"
+                              >
+                                {{ attendance.playerName }}
+                              </span>
+                              <span
+                                class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                [class]="categoryBadgeClasses(attendance.category)"
+                              >
+                                {{ categoryLabel(attendance.category) }}
+                              </span>
+                            </div>
+
+                            <div class="flex shrink-0 items-center gap-1.5">
+                              @if (attendance.presence === 'presente') {
+                                <span
+                                  class="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700"
+                                >
+                                  <svg lucideCheck [size]="12" class="block"></svg>
+                                  Asistió
+                                </span>
+                              } @else if (attendance.presence === 'ausente') {
+                                <span
+                                  class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600"
+                                >
+                                  <svg lucideX [size]="12" class="block"></svg>
+                                  No asistió
+                                </span>
+                              }
+
+                              @if (attendance.status === 'ausente') {
+                                <span
+                                  class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600"
+                                >
+                                  <svg lucideCircleX [size]="12" class="block"></svg>
+                                  Cupo Liberado
+                                </span>
+                              } @else {
+                                <span
+                                  class="inline-flex items-center gap-1 text-[11px] font-medium text-brand-700"
+                                >
+                                  <svg lucideCircleCheck [size]="12" class="block"></svg>
+                                  Confirmado
+                                </span>
+                              }
+                            </div>
                           </div>
 
-                          <div class="flex shrink-0 items-center gap-1.5">
-                            @if (attendance.presence === 'presente') {
-                              <span
-                                class="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700"
-                              >
-                                <svg lucideCheck [size]="12" class="block"></svg>
-                                Asistió
-                              </span>
-                            } @else if (attendance.presence === 'ausente') {
-                              <span
-                                class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600"
-                              >
-                                <svg lucideX [size]="12" class="block"></svg>
-                                No asistió
-                              </span>
-                            }
-
-                            @if (attendance.status === 'ausente') {
-                              <span
-                                class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600"
-                              >
-                                <svg lucideCircleX [size]="12" class="block"></svg>
-                                Cupo Liberado
-                              </span>
+                          <!-- El entrenador da de baja al jugador que avisó que no puede ir -->
+                          @if (!isPastSession(session)) {
+                            @if (attendance.status === 'confirmado') {
+                              @if (isConfirming(session.id, attendance.id)) {
+                                <div class="flex flex-col gap-2 rounded-lg bg-red-50 p-2.5">
+                                  <p
+                                    class="flex items-center gap-1.5 text-xs font-medium text-red-700"
+                                  >
+                                    <svg lucideCircleAlert [size]="14" class="block"></svg>
+                                    ¿Dar de baja a {{ attendance.playerName }}? Se liberará el cupo.
+                                  </p>
+                                  <div class="flex gap-2">
+                                    <button
+                                      type="button"
+                                      (click)="confirmCancel(session.id, attendance.id)"
+                                      class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                                    >
+                                      Sí, dar de baja
+                                    </button>
+                                    <button
+                                      type="button"
+                                      (click)="dismissCancel()"
+                                      class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                    >
+                                      No
+                                    </button>
+                                  </div>
+                                </div>
+                              } @else {
+                                <button
+                                  type="button"
+                                  (click)="requestCancel(session.id, attendance.id)"
+                                  class="inline-flex items-center gap-1.5 self-start rounded-md border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-100"
+                                >
+                                  <svg lucideUserMinus [size]="12" class="block"></svg>
+                                  Dar de baja
+                                </button>
+                              }
                             } @else {
-                              <span
-                                class="inline-flex items-center gap-1 text-[11px] font-medium text-brand-700"
+                              <button
+                                type="button"
+                                (click)="undoCancel(session.id, attendance.id)"
+                                class="inline-flex items-center gap-1.5 self-start rounded-md border border-gray-300 px-2.5 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
                               >
-                                <svg lucideCircleCheck [size]="12" class="block"></svg>
-                                Confirmado
-                              </span>
+                                <svg lucideRotateCcw [size]="12" class="block"></svg>
+                                Reactivar cupo
+                              </button>
                             }
-                          </div>
+                          }
                         </li>
                       }
                     </ul>
@@ -483,6 +535,42 @@
                           <svg lucideUserPlus [size]="14" class="block"></svg>
                           Agregar jugador al turno
                         </button>
+                      }
+
+                      <!-- Los turnos sueltos se pueden eliminar desde acá -->
+                      @if (isOneOffSession(session)) {
+                        @if (confirmingSessionDeleteId() === session.id) {
+                          <div class="flex flex-col gap-2 rounded-lg bg-red-50 p-2.5">
+                            <p class="text-xs font-medium text-red-700">
+                              ¿Eliminar este turno y sus anotados?
+                            </p>
+                            <div class="flex gap-2">
+                              <button
+                                type="button"
+                                (click)="confirmSessionDelete(session.id)"
+                                class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                              >
+                                Sí, eliminar
+                              </button>
+                              <button
+                                type="button"
+                                (click)="dismissSessionDelete()"
+                                class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                              >
+                                No
+                              </button>
+                            </div>
+                          </div>
+                        } @else {
+                          <button
+                            type="button"
+                            (click)="requestSessionDelete(session.id)"
+                            class="inline-flex items-center gap-1.5 self-start text-xs font-medium text-gray-500 hover:text-red-600"
+                          >
+                            <svg lucideTrash2 [size]="13" class="block"></svg>
+                            Eliminar turno
+                          </button>
+                        }
                       }
                     }
                   </div>
@@ -597,6 +685,109 @@
             </div>
           }
         </div>
+      }
+
+      <!-- Turno puntual en este día (Vista Entrenador) -->
+      @if (role() === 'entrenador' && !selectedDayIsPast()) {
+        @if (newSessionOpen()) {
+          <div class="mt-4 flex flex-col gap-3 rounded-lg border border-gray-200 p-3">
+            <h3 class="text-sm font-semibold text-gray-900">Nuevo turno en este día</h3>
+
+            <div class="flex flex-col gap-1">
+              <label for="newSessionLabel" class="text-xs font-medium text-gray-700">Nombre</label>
+              <input
+                id="newSessionLabel"
+                type="text"
+                [ngModel]="newSessionLabel()"
+                (ngModelChange)="newSessionLabel.set($event)"
+                class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div class="flex flex-col gap-1">
+                <label for="newSessionStart" class="text-xs font-medium text-gray-700"
+                  >Inicio</label
+                >
+                <input
+                  id="newSessionStart"
+                  type="time"
+                  [ngModel]="newSessionStart()"
+                  (ngModelChange)="newSessionStart.set($event)"
+                  class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                />
+              </div>
+              <div class="flex flex-col gap-1">
+                <label for="newSessionEnd" class="text-xs font-medium text-gray-700">Fin</label>
+                <input
+                  id="newSessionEnd"
+                  type="time"
+                  [ngModel]="newSessionEnd()"
+                  (ngModelChange)="newSessionEnd.set($event)"
+                  class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                />
+              </div>
+            </div>
+
+            <label class="inline-flex cursor-pointer items-center gap-2 text-xs text-gray-700">
+              <input
+                type="checkbox"
+                [ngModel]="newSessionUnlimited()"
+                (ngModelChange)="newSessionUnlimited.set($event)"
+                class="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-700"
+              />
+              Sin límite de jugadores
+            </label>
+
+            @if (!newSessionUnlimited()) {
+              <div class="flex flex-col gap-1">
+                <label for="newSessionCapacity" class="text-xs font-medium text-gray-700">
+                  Máximo de cupos
+                </label>
+                <input
+                  id="newSessionCapacity"
+                  type="number"
+                  min="1"
+                  [ngModel]="newSessionCapacity()"
+                  (ngModelChange)="newSessionCapacity.set($event)"
+                  class="w-24 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+                />
+              </div>
+            }
+
+            @if (newSessionError()) {
+              <p class="rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                {{ newSessionError() }}
+              </p>
+            }
+
+            <div class="flex gap-2">
+              <button
+                type="button"
+                (click)="createSession()"
+                class="flex-1 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-700"
+              >
+                Crear turno
+              </button>
+              <button
+                type="button"
+                (click)="closeNewSession()"
+                class="rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        } @else {
+          <button
+            type="button"
+            (click)="openNewSession()"
+            class="mt-4 inline-flex items-center justify-center gap-2 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2.5 text-sm font-semibold text-brand-700 hover:bg-brand-100"
+          >
+            <svg lucideCirclePlus [size]="16" class="block"></svg>
+            Agregar turno en este día
+          </button>
+        }
       }
     </aside>
   }

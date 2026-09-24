@@ -251,6 +251,78 @@ describe('CalendarService', () => {
     expect(regenerated.every((session) => session.startTime === '06:00')).toBe(true);
   });
 
+  it('el entrenador da de baja a un jugador del turno y el cupo queda libre', () => {
+    const session = sessionWithFreeSlot();
+    const attendance = session.attendances[0];
+    const freeBefore = service.freeSlots(session) ?? 0;
+
+    service.cancelAttendance(session.id, attendance.id);
+
+    const updated = reload(session.id);
+    expect(service.attendanceFor(updated, attendance.playerId)?.status).toBe('ausente');
+    expect(service.freeSlots(updated)).toBe(freeBefore + 1);
+  });
+
+  it('crea un turno puntual en un día concreto, sin plantilla detrás', () => {
+    const date = addDays(today, 3);
+
+    const created = service.addSessionOn(date, {
+      label: 'Turno particular',
+      startTime: '19:30',
+      endTime: '20:30',
+      capacity: 1,
+      playerIds: [],
+    })!;
+
+    expect(created.templateId).toBeNull();
+    expect(created.capacity).toBe(1);
+    expect(service.sessionsForDate(date).map((session) => session.id)).toContain(created.id);
+  });
+
+  it('no crea dos turnos que arranquen a la misma hora el mismo día', () => {
+    const date = addDays(today, 3);
+    const input = {
+      label: 'Turno particular',
+      startTime: '19:30',
+      endTime: '20:30',
+      capacity: null,
+      playerIds: [],
+    };
+    expect(service.addSessionOn(date, input)).not.toBeNull();
+
+    expect(service.addSessionOn(date, { ...input, label: 'Otro' })).toBeNull();
+    expect(service.sessionsForDate(date)).toHaveLength(1);
+  });
+
+  it('el turno puntual arranca con los jugadores indicados', () => {
+    const created = service.addSessionOn(addDays(today, 4), {
+      label: 'Particular con Matías',
+      startTime: '20:00',
+      endTime: '21:00',
+      capacity: 1,
+      playerIds: [1],
+    })!;
+
+    expect(created.attendances).toHaveLength(1);
+    expect(created.attendances[0].playerId).toBe(1);
+    expect(created.attendances[0].status).toBe('confirmado');
+  });
+
+  it('elimina un turno puntual del calendario', () => {
+    const date = addDays(today, 5);
+    const created = service.addSessionOn(date, {
+      label: 'Turno particular',
+      startTime: '07:30',
+      endTime: '08:30',
+      capacity: null,
+      playerIds: [],
+    })!;
+
+    service.removeSession(created.id);
+
+    expect(service.sessionsForDate(date)).toHaveLength(0);
+  });
+
   it('cancelar registra un cupo liberado pendiente y deshacerlo lo quita', () => {
     const session = sessionWithFreeSlot();
     const confirmed = session.attendances.find((a) => a.status === 'confirmado')!;
