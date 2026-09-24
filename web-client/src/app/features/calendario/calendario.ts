@@ -52,6 +52,8 @@ interface CalendarCell {
   date: Date;
   inCurrentPeriod: boolean;
   isToday: boolean;
+  /** Día anterior a hoy: se muestra grisado y no admite cambios. */
+  isPast: boolean;
   sessions: TrainingSession[];
 }
 
@@ -166,6 +168,7 @@ export class Calendario implements OnInit {
         date,
         inCurrentPeriod: date.getMonth() === cursor.getMonth(),
         isToday: isSameDay(date, this.today),
+        isPast: date.getTime() < this.today.getTime(),
         sessions: byDate.get(dateKey(date)) ?? [],
       };
     });
@@ -181,6 +184,7 @@ export class Calendario implements OnInit {
         date,
         inCurrentPeriod: true,
         isToday: isSameDay(date, this.today),
+        isPast: date.getTime() < this.today.getTime(),
         sessions: byDate.get(dateKey(date)) ?? [],
       };
     });
@@ -420,6 +424,16 @@ export class Calendario implements OnInit {
     }
   }
 
+  /** Un día anterior a hoy es historial: se muestra grisado y no admite cambios. */
+  protected isPastDate(date: Date): boolean {
+    return atMidnight(date).getTime() < this.today.getTime();
+  }
+
+  protected readonly selectedDayIsPast = computed(() => {
+    const date = this.selectedDate();
+    return date !== null && this.isPastDate(date);
+  });
+
   protected isSelectedDay(date: Date): boolean {
     const selected = this.selectedDate();
     return selected !== null && isSameDay(selected, date);
@@ -472,6 +486,9 @@ export class Calendario implements OnInit {
   // ------------------------------------------------------------------
 
   protected readonly configOpen = signal(false);
+
+  /** True cuando ya hay al menos un turno configurado (si no, el calendario está vacío). */
+  protected readonly hasSchedule = computed(() => this.calendarService.templates().length > 0);
 
   protected openConfig(): void {
     this.calendarService.setRole('entrenador');

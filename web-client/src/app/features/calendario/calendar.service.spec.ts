@@ -7,7 +7,7 @@ import { PlayersService } from '../../core/players/players.service';
 
 const NEW_PLAYER = { id: 99, name: 'Lucía Benítez', category: 4 };
 
-/** Turno de madrugada: el horario no choca con los turnos de la semilla mock. */
+/** Turno sin tope que se dicta solo los miércoles. */
 const MORNING_SHIFT: ShiftTemplateInput = {
   label: 'Turno Madrugada',
   startTime: '07:00',
@@ -15,6 +15,16 @@ const MORNING_SHIFT: ShiftTemplateInput = {
   weekdays: [3],
   capacity: null,
   playerIds: [],
+};
+
+/** Turno con tope y tres jugadores fijos (ids del plantel de demo). */
+const CAPPED_SHIFT: ShiftTemplateInput = {
+  label: 'Turno Tarde',
+  startTime: '16:00',
+  endTime: '18:00',
+  weekdays: [1, 2, 3, 4, 5, 6, 7],
+  capacity: 6,
+  playerIds: [1, 2, 3],
 };
 
 describe('CalendarService', () => {
@@ -41,22 +51,27 @@ describe('CalendarService', () => {
     return service.sessions().filter((session) => session.templateId === templateId);
   }
 
-  /** Primer turno con al menos un cupo libre, para probar la reserva. */
+  /** Turno con tope, jugadores anotados y cupos libres, para probar la reserva. */
   function sessionWithFreeSlot(): TrainingSession {
-    const session = service.sessions().find((candidate) => service.hasFreeSlot(candidate));
-    expect(session).toBeDefined();
-    return session!;
+    const template = generate(CAPPED_SHIFT, 1);
+    const session = sessionsOf(template.id)[0];
+    expect(service.hasFreeSlot(session)).toBe(true);
+    return session;
   }
 
   function reload(sessionId: number): TrainingSession {
     return service.sessions().find((candidate) => candidate.id === sessionId)!;
   }
 
+  it('arranca con el calendario vacío hasta que el entrenador configura su jornada', () => {
+    expect(service.templates()).toHaveLength(0);
+    expect(service.sessions()).toHaveLength(0);
+  });
+
   it('calcula los cupos libres descontando solo las reservas confirmadas', () => {
-    const session = service.sessions()[0];
-    expect(service.freeSlots(session)).toBe(
-      (session.capacity ?? 0) - service.confirmedCount(session),
-    );
+    const session = sessionWithFreeSlot();
+    expect(service.confirmedCount(session)).toBe(3);
+    expect(service.freeSlots(session)).toBe(3);
   });
 
   it('reserva un cupo para un jugador que no estaba anotado', () => {

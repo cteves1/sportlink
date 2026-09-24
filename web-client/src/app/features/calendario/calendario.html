@@ -210,6 +210,29 @@
     </section>
   }
 
+  <!-- Calendario todavía sin configurar (Vista Entrenador) -->
+  @if (role() === 'entrenador' && !hasSchedule()) {
+    <section
+      class="flex flex-col items-start gap-3 rounded-xl border border-dashed border-gray-300 bg-white p-6"
+    >
+      <div>
+        <h2 class="text-sm font-semibold text-gray-900">Tu calendario está vacío</h2>
+        <p class="mt-1 text-sm text-gray-500">
+          Define tu jornada (por ejemplo, de lunes a viernes) y el horario de cada turno para que
+          aparezcan en el calendario.
+        </p>
+      </div>
+      <button
+        type="button"
+        (click)="openConfig()"
+        class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+      >
+        <svg lucideCalendarCog [size]="16" class="block"></svg>
+        Configurar calendario
+      </button>
+    </section>
+  }
+
   <!-- Cuadrícula del calendario (ambos roles) -->
   <section class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
     <div class="mb-2 grid grid-cols-7 gap-2 text-center text-xs font-medium text-gray-400">
@@ -230,13 +253,15 @@
           [class.ring-1]="isSelectedDay(cell.date)"
           [class.ring-brand-600]="isSelectedDay(cell.date)"
           [class.border-gray-200]="!isSelectedDay(cell.date)"
-          [class.bg-gray-50]="!cell.inCurrentPeriod"
-          [class.hover:border-brand-400]="cell.inCurrentPeriod"
+          [class.bg-gray-50]="!cell.inCurrentPeriod || cell.isPast"
+          [class.opacity-60]="cell.isPast"
+          [class.hover:border-brand-400]="cell.inCurrentPeriod && !cell.isPast"
         >
           <span
             class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold"
             [class.text-gray-300]="!cell.inCurrentPeriod"
-            [class.text-gray-700]="cell.inCurrentPeriod && !cell.isToday"
+            [class.text-gray-400]="cell.inCurrentPeriod && cell.isPast"
+            [class.text-gray-700]="cell.inCurrentPeriod && !cell.isPast && !cell.isToday"
             [class.bg-brand-600]="cell.isToday"
             [class.text-white]="cell.isToday"
           >
@@ -244,20 +269,30 @@
           </span>
 
           @if (cell.sessions.length > 0) {
-            <span
-              class="rounded-full px-2 py-0.5 text-[11px] font-medium"
-              [class]="dayOccupancyClasses(cell)"
-            >
-              {{ cell.sessions.length }} {{ cell.sessions.length === 1 ? 'turno' : 'turnos' }}
-            </span>
-            <span
-              class="text-[11px] font-medium"
-              [class.text-red-600]="isDayFull(cell)"
-              [class.text-brand-700]="!isDayFull(cell)"
-            >
-              {{ dayAvailabilityLabel(cell) }}
-            </span>
-            <span class="text-[11px] text-gray-500">{{ dayOccupancyLabel(cell) }}</span>
+            @if (cell.isPast) {
+              <!-- Día cerrado: solo el resumen, en gris, sin destacar cupos -->
+              <span
+                class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-400"
+              >
+                {{ cell.sessions.length }} {{ cell.sessions.length === 1 ? 'turno' : 'turnos' }}
+              </span>
+              <span class="text-[11px] text-gray-400">{{ dayOccupancyLabel(cell) }}</span>
+            } @else {
+              <span
+                class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                [class]="dayOccupancyClasses(cell)"
+              >
+                {{ cell.sessions.length }} {{ cell.sessions.length === 1 ? 'turno' : 'turnos' }}
+              </span>
+              <span
+                class="text-[11px] font-medium"
+                [class.text-red-600]="isDayFull(cell)"
+                [class.text-brand-700]="!isDayFull(cell)"
+              >
+                {{ dayAvailabilityLabel(cell) }}
+              </span>
+              <span class="text-[11px] text-gray-500">{{ dayOccupancyLabel(cell) }}</span>
+            }
           }
         </button>
       }
@@ -285,6 +320,12 @@
           <svg lucideX [size]="20" class="block"></svg>
         </button>
       </div>
+
+      @if (selectedDayIsPast()) {
+        <p class="mb-3 rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-500">
+          Este día ya pasó: se puede consultar, pero no editar.
+        </p>
+      }
 
       @if (selectedDaySessions().length === 0) {
         <p

@@ -25,110 +25,19 @@ const MOCK_PLAYERS: MockPlayer[] = [
   { id: 8, name: 'Antonia Reyes', category: 6 },
 ];
 
-function attendanceOf(playerId: number, status: Attendance['status'] = 'confirmado'): Attendance {
-  const player = MOCK_PLAYERS.find((p) => p.id === playerId)!;
-  return { id: playerId, playerId, playerName: player.name, category: player.category, status };
+// Claves versionadas: las anteriores contenían los turnos de demo sembrados a mano, que ya
+// no existen. Se descartan al arrancar para que el calendario quede vacío hasta configurarlo.
+const STORAGE_KEY = 'tt-trainer-calendar-sessions-v2';
+const TEMPLATES_STORAGE_KEY = 'tt-trainer-shift-templates-v2';
+const LEGACY_STORAGE_KEYS = ['tt-trainer-calendar-sessions', 'tt-trainer-shift-templates'];
+
+function dropLegacyStorage(): void {
+  try {
+    for (const key of LEGACY_STORAGE_KEYS) localStorage.removeItem(key);
+  } catch {
+    // Almacenamiento no disponible: no hay nada viejo que limpiar.
+  }
 }
-
-const today = atMidnight(new Date());
-
-function buildMockSessions(): TrainingSession[] {
-  let nextId = 1;
-  const session = (
-    dayOffset: number,
-    shiftLabel: string,
-    startTime: string,
-    endTime: string,
-    attendances: Attendance[],
-  ): TrainingSession => ({
-    id: nextId++,
-    date: addDays(today, dayOffset),
-    shiftLabel,
-    startTime,
-    endTime,
-    capacity: 6,
-    attendances,
-    templateId: null,
-  });
-
-  return [
-    session(-3, 'Turno Tarde', '16:00', '18:00', [
-      attendanceOf(1),
-      attendanceOf(2),
-      attendanceOf(3, 'ausente'),
-      attendanceOf(4),
-    ]),
-    session(-1, 'Turno Mañana', '09:00', '11:00', [attendanceOf(5), attendanceOf(6)]),
-    session(0, 'Turno Mañana', '09:00', '11:00', [
-      attendanceOf(1),
-      attendanceOf(4),
-      attendanceOf(7),
-    ]),
-    session(0, 'Turno Tarde', '16:00', '18:00', [
-      attendanceOf(2),
-      attendanceOf(3),
-      attendanceOf(5),
-      attendanceOf(6),
-      attendanceOf(8, 'ausente'),
-    ]),
-    session(2, 'Turno Noche', '19:00', '21:00', [
-      attendanceOf(1),
-      attendanceOf(6),
-      attendanceOf(7),
-    ]),
-    session(4, 'Turno Tarde', '16:00', '18:00', [
-      attendanceOf(2),
-      attendanceOf(4),
-      attendanceOf(5),
-      attendanceOf(6),
-      attendanceOf(7),
-      attendanceOf(8),
-    ]),
-    session(6, 'Turno Mañana', '09:00', '11:00', [attendanceOf(3), attendanceOf(8)]),
-    session(6, 'Turno Noche', '19:00', '21:00', [
-      attendanceOf(1),
-      attendanceOf(2),
-      attendanceOf(3),
-    ]),
-    session(9, 'Turno Tarde', '16:00', '18:00', [
-      attendanceOf(4),
-      attendanceOf(5),
-      attendanceOf(1),
-    ]),
-    session(11, 'Turno Mañana', '09:00', '11:00', [
-      attendanceOf(6),
-      attendanceOf(7),
-      attendanceOf(2, 'ausente'),
-    ]),
-    session(13, 'Turno Noche', '19:00', '21:00', [
-      attendanceOf(8),
-      attendanceOf(3),
-      attendanceOf(4),
-    ]),
-    session(16, 'Turno Tarde', '16:00', '18:00', [
-      attendanceOf(1),
-      attendanceOf(5),
-      attendanceOf(6),
-      attendanceOf(7),
-    ]),
-  ];
-}
-
-const STORAGE_KEY = 'tt-trainer-calendar-sessions';
-const TEMPLATES_STORAGE_KEY = 'tt-trainer-shift-templates';
-
-/** Jornada y turno de arranque (lunes a viernes por la mañana), editables desde la configuración. */
-const DEFAULT_TEMPLATES: ShiftTemplate[] = [
-  {
-    id: 1,
-    label: 'Turno Mañana',
-    startTime: '09:00',
-    endTime: '13:00',
-    weekdays: [1, 2, 3, 4, 5],
-    capacity: null,
-    playerIds: [],
-  },
-];
 
 /** Datos que el entrenador define de un turno; el id lo asigna el servicio. */
 export type ShiftTemplateInput = Omit<ShiftTemplate, 'id'>;
@@ -142,7 +51,8 @@ export class CalendarService {
   readonly players: readonly MockPlayer[] = MOCK_PLAYERS;
 
   /** Fuente única de verdad: al mutarse, tanto la Vista Entrenador como la Vista
-   *  Jugador (que leen este mismo signal) se recalculan y repintan automáticamente. */
+   *  Jugador (que leen este mismo signal) se recalculan y repintan automáticamente.
+   *  Arranca vacío: los turnos aparecen recién cuando el entrenador configura su jornada. */
   readonly sessions = signal<TrainingSession[]>(this.readStored());
 
   readonly role = signal<UserRole>('entrenador');
@@ -437,13 +347,14 @@ export class CalendarService {
     }
   }
 
-  /** Lee las sesiones guardadas; si no hay nada o está corrupto, usa la semilla mock determinística. */
+  /** Lee las sesiones guardadas; si no hay nada o está corrupto, el calendario arranca vacío. */
   private readStored(): TrainingSession[] {
+    dropLegacyStorage();
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return buildMockSessions();
+    if (!raw) return [];
     try {
       const parsed = JSON.parse(raw) as TrainingSession[];
-      if (!Array.isArray(parsed)) return buildMockSessions();
+      if (!Array.isArray(parsed)) return [];
       // Normaliza los registros guardados antes de que existieran los turnos configurables.
       return parsed.map((session) => ({
         ...session,
@@ -452,7 +363,7 @@ export class CalendarService {
         templateId: session.templateId ?? null,
       }));
     } catch {
-      return buildMockSessions();
+      return [];
     }
   }
 
@@ -464,13 +375,13 @@ export class CalendarService {
     }
   }
 
-  /** Lee los turnos configurados; sin nada guardado arranca con la jornada por defecto. */
+  /** Lee los turnos configurados; sin nada guardado no hay jornada y el calendario queda vacío. */
   private readStoredTemplates(): ShiftTemplate[] {
     const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
-    if (!raw) return DEFAULT_TEMPLATES.map((template) => ({ ...template }));
+    if (!raw) return [];
     try {
       const parsed = JSON.parse(raw) as ShiftTemplate[];
-      if (!Array.isArray(parsed)) return DEFAULT_TEMPLATES.map((template) => ({ ...template }));
+      if (!Array.isArray(parsed)) return [];
       return parsed.map((template) => ({
         ...template,
         weekdays: (template.weekdays ?? []) as Weekday[],
@@ -478,7 +389,7 @@ export class CalendarService {
         playerIds: template.playerIds ?? [],
       }));
     } catch {
-      return DEFAULT_TEMPLATES.map((template) => ({ ...template }));
+      return [];
     }
   }
 }
