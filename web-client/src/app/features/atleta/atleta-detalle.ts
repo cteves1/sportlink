@@ -6,6 +6,7 @@ import {
   LucideCalendarRange,
   LucideClipboardCheck,
   LucideDumbbell,
+  LucideTarget,
   LucideTrophy,
   LucideUserRound,
 } from '@lucide/angular';
@@ -15,8 +16,9 @@ import { AtletaCalendarioAnual } from './tabs/atleta-calendario-anual';
 import { AtletaCompetencia } from './tabs/atleta-competencia';
 import { AtletaEntrenamiento } from './tabs/atleta-entrenamiento';
 import { AtletaInfo } from './tabs/atleta-info';
+import { AtletaPeriodizacion } from './tabs/atleta-periodizacion';
 
-type TabId = 'info' | 'entrenamiento' | 'asistencia' | 'competencia' | 'anual';
+type TabId = 'info' | 'entrenamiento' | 'asistencia' | 'competencia' | 'anual' | 'periodizacion';
 
 @Component({
   selector: 'app-atleta-detalle',
@@ -27,6 +29,7 @@ type TabId = 'info' | 'entrenamiento' | 'asistencia' | 'competencia' | 'anual';
     LucideCalendarRange,
     LucideClipboardCheck,
     LucideDumbbell,
+    LucideTarget,
     LucideTrophy,
     LucideUserRound,
     AtletaInfo,
@@ -34,6 +37,7 @@ type TabId = 'info' | 'entrenamiento' | 'asistencia' | 'competencia' | 'anual';
     AtletaAsistencia,
     AtletaCompetencia,
     AtletaCalendarioAnual,
+    AtletaPeriodizacion,
   ],
   templateUrl: './atleta-detalle.html',
 })

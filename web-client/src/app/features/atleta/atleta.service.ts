@@ -8,8 +8,12 @@ import {
   Competition,
   EliteAthleteProfile,
   EquipmentInfo,
+  Macrocycle,
+  Mesocycle,
+  MicrocycleDay,
   TrainingDayPlan,
 } from './atleta.models';
+import { MacrocycleInput, buildMacrocycle } from './periodization';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -70,13 +74,25 @@ function buildWeeklyPlan(): TrainingDayPlan[] {
     {
       weekday: 5,
       activities: [
-        { label: 'Particular con entrenador local', location: 'particular', durationMin: 150, sessions: 1 },
+        {
+          label: 'Particular con entrenador local',
+          location: 'particular',
+          durationMin: 150,
+          sessions: 1,
+        },
         { label: 'Saques', location: 'club', durationMin: 45, sessions: 1 },
       ],
     },
     {
       weekday: 6,
-      activities: [{ label: 'Sparring / partidos de práctica', location: 'club', durationMin: 120, sessions: 1 }],
+      activities: [
+        {
+          label: 'Sparring / partidos de práctica',
+          location: 'club',
+          durationMin: 120,
+          sessions: 1,
+        },
+      ],
     },
     { weekday: 7, activities: [] },
   ];
@@ -145,10 +161,30 @@ function buildCompetitions(athleteId: number): Competition[] {
       draw: 'Sub-19 Masculino',
       placement: pickPlacement(['Campeón', 'Finalista', 'Semifinal']),
       matches: [
-        { round: 'Grupo', opponent: 'L. Peralta (Córdoba)', result: 'victoria', score: '3-0 (11-6, 11-8, 11-5)' },
-        { round: 'Grupo', opponent: 'M. Quiroga (Santa Fe)', result: 'victoria', score: '3-1 (11-9, 8-11, 11-7, 11-6)' },
-        { round: 'Cuartos', opponent: 'F. Ibarra (CABA)', result: 'victoria', score: '3-2 (9-11, 11-7, 11-9, 6-11, 11-8)' },
-        { round: 'Semifinal', opponent: 'J. Ramírez (Mendoza)', result: 'derrota', score: '2-3 (11-7, 9-11, 11-8, 7-11, 9-11)' },
+        {
+          round: 'Grupo',
+          opponent: 'L. Peralta (Córdoba)',
+          result: 'victoria',
+          score: '3-0 (11-6, 11-8, 11-5)',
+        },
+        {
+          round: 'Grupo',
+          opponent: 'M. Quiroga (Santa Fe)',
+          result: 'victoria',
+          score: '3-1 (11-9, 8-11, 11-7, 11-6)',
+        },
+        {
+          round: 'Cuartos',
+          opponent: 'F. Ibarra (CABA)',
+          result: 'victoria',
+          score: '3-2 (9-11, 11-7, 11-9, 6-11, 11-8)',
+        },
+        {
+          round: 'Semifinal',
+          opponent: 'J. Ramírez (Mendoza)',
+          result: 'derrota',
+          score: '2-3 (11-7, 9-11, 11-8, 7-11, 9-11)',
+        },
       ],
       notes: 'Muy sólido de derecha; perdió el control del ritmo en los sets largos.',
     },
@@ -161,9 +197,24 @@ function buildCompetitions(athleteId: number): Competition[] {
       draw: 'Primera',
       placement: pickPlacement(['3.º puesto', 'Cuartos de final', 'Semifinal']),
       matches: [
-        { round: 'Octavos', opponent: 'D. Sosa (Buenos Aires)', result: 'victoria', score: '3-0 (11-4, 11-9, 11-7)' },
-        { round: 'Cuartos', opponent: 'N. Ferreyra (Entre Ríos)', result: 'victoria', score: '3-1 (11-6, 11-13, 11-8, 11-9)' },
-        { round: 'Semifinal', opponent: 'A. Molina (CABA)', result: 'derrota', score: '1-3 (11-9, 7-11, 8-11, 6-11)' },
+        {
+          round: 'Octavos',
+          opponent: 'D. Sosa (Buenos Aires)',
+          result: 'victoria',
+          score: '3-0 (11-4, 11-9, 11-7)',
+        },
+        {
+          round: 'Cuartos',
+          opponent: 'N. Ferreyra (Entre Ríos)',
+          result: 'victoria',
+          score: '3-1 (11-6, 11-13, 11-8, 11-9)',
+        },
+        {
+          round: 'Semifinal',
+          opponent: 'A. Molina (CABA)',
+          result: 'derrota',
+          score: '1-3 (11-9, 7-11, 8-11, 6-11)',
+        },
       ],
       notes: 'Buena lectura del saque rival; recepción de revés a mejorar.',
     },
@@ -176,10 +227,30 @@ function buildCompetitions(athleteId: number): Competition[] {
       draw: 'Sub-19 Masculino',
       placement: pickPlacement(['Cuartos de final', 'Octavos de final', 'Semifinal']),
       matches: [
-        { round: 'Grupo', opponent: 'R. Coelho (BRA)', result: 'derrota', score: '1-3 (11-8, 6-11, 9-11, 7-11)' },
-        { round: 'Grupo', opponent: 'S. Aguirre (CHI)', result: 'victoria', score: '3-0 (11-7, 11-5, 11-9)' },
-        { round: 'Octavos', opponent: 'P. Cardozo (PAR)', result: 'victoria', score: '3-2 (8-11, 11-9, 11-7, 5-11, 11-9)' },
-        { round: 'Cuartos', opponent: 'T. Almeida (BRA)', result: 'derrota', score: '0-3 (7-11, 9-11, 8-11)' },
+        {
+          round: 'Grupo',
+          opponent: 'R. Coelho (BRA)',
+          result: 'derrota',
+          score: '1-3 (11-8, 6-11, 9-11, 7-11)',
+        },
+        {
+          round: 'Grupo',
+          opponent: 'S. Aguirre (CHI)',
+          result: 'victoria',
+          score: '3-0 (11-7, 11-5, 11-9)',
+        },
+        {
+          round: 'Octavos',
+          opponent: 'P. Cardozo (PAR)',
+          result: 'victoria',
+          score: '3-2 (8-11, 11-9, 11-7, 5-11, 11-9)',
+        },
+        {
+          round: 'Cuartos',
+          opponent: 'T. Almeida (BRA)',
+          result: 'derrota',
+          score: '0-3 (7-11, 9-11, 8-11)',
+        },
       ],
       notes: 'Primera experiencia internacional del año: gran actitud competitiva.',
     },
@@ -192,10 +263,30 @@ function buildCompetitions(athleteId: number): Competition[] {
       draw: 'Primera',
       placement: pickPlacement(['Campeón', 'Finalista', '3.º puesto']),
       matches: [
-        { round: 'Grupo', opponent: 'E. Vallejos (La Pampa)', result: 'victoria', score: '3-0 (11-5, 11-7, 11-6)' },
-        { round: 'Cuartos', opponent: 'G. Maidana (Chaco)', result: 'victoria', score: '3-1 (11-8, 11-6, 9-11, 11-7)' },
-        { round: 'Semifinal', opponent: 'J. Ramírez (Mendoza)', result: 'victoria', score: '3-2 (11-9, 8-11, 11-6, 10-12, 11-8)' },
-        { round: 'Final', opponent: 'A. Molina (CABA)', result: 'victoria', score: '3-1 (11-7, 9-11, 11-8, 11-9)' },
+        {
+          round: 'Grupo',
+          opponent: 'E. Vallejos (La Pampa)',
+          result: 'victoria',
+          score: '3-0 (11-5, 11-7, 11-6)',
+        },
+        {
+          round: 'Cuartos',
+          opponent: 'G. Maidana (Chaco)',
+          result: 'victoria',
+          score: '3-1 (11-8, 11-6, 9-11, 11-7)',
+        },
+        {
+          round: 'Semifinal',
+          opponent: 'J. Ramírez (Mendoza)',
+          result: 'victoria',
+          score: '3-2 (11-9, 8-11, 11-6, 10-12, 11-8)',
+        },
+        {
+          round: 'Final',
+          opponent: 'A. Molina (CABA)',
+          result: 'victoria',
+          score: '3-1 (11-7, 9-11, 11-8, 11-9)',
+        },
       ],
       notes: 'Mejor torneo de la temporada: revirtió el historial ante Molina.',
     },
@@ -208,9 +299,24 @@ function buildCompetitions(athleteId: number): Competition[] {
       draw: 'Primera',
       placement: pickPlacement(['Semifinal', 'Cuartos de final', 'Finalista']),
       matches: [
-        { round: 'Octavos', opponent: 'C. Villalba (Salta)', result: 'victoria', score: '3-0 (11-6, 11-8, 11-4)' },
-        { round: 'Cuartos', opponent: 'F. Ibarra (CABA)', result: 'victoria', score: '3-1 (11-9, 11-7, 8-11, 11-6)' },
-        { round: 'Semifinal', opponent: 'T. Almeida (invitado)', result: 'derrota', score: '2-3 (11-8, 11-9, 7-11, 9-11, 8-11)' },
+        {
+          round: 'Octavos',
+          opponent: 'C. Villalba (Salta)',
+          result: 'victoria',
+          score: '3-0 (11-6, 11-8, 11-4)',
+        },
+        {
+          round: 'Cuartos',
+          opponent: 'F. Ibarra (CABA)',
+          result: 'victoria',
+          score: '3-1 (11-9, 11-7, 8-11, 11-6)',
+        },
+        {
+          round: 'Semifinal',
+          opponent: 'T. Almeida (invitado)',
+          result: 'derrota',
+          score: '2-3 (11-8, 11-9, 7-11, 9-11, 8-11)',
+        },
       ],
       notes: 'Cierre de temporada con buen nivel físico; ajustar el servicio corto.',
     },
@@ -343,6 +449,8 @@ function buildProfile(athleteId: number): EliteAthleteProfile {
     attendance: buildAttendance(athleteId, weeklyPlan, competitions),
     competitions,
     annualGoals: buildAnnualGoals(),
+    // La planificación por ciclos arranca vacía: la define el entrenador.
+    macrocycles: [],
   };
 }
 
@@ -385,7 +493,88 @@ export class AtletaService {
   updateAnnualGoal(athleteId: number, month: number, patch: Omit<AnnualGoal, 'month'>): void {
     this.updateProfile(athleteId, (profile) => ({
       ...profile,
-      annualGoals: profile.annualGoals.map((goal) => (goal.month === month ? { ...goal, ...patch } : goal)),
+      annualGoals: profile.annualGoals.map((goal) =>
+        goal.month === month ? { ...goal, ...patch } : goal,
+      ),
+    }));
+  }
+
+  // ------------------------------------------------------------------
+  // Planificación por ciclos (macro / meso / micro)
+  // ------------------------------------------------------------------
+
+  /** Genera un macrociclo con sus mesociclos y microciclos a partir del período y el objetivo. */
+  createMacrocycle(athleteId: number, input: MacrocycleInput): Macrocycle {
+    const existing = this.profileFor(athleteId).macrocycles;
+    const macrocycle = buildMacrocycle(Math.max(0, ...existing.map((m) => m.id)) + 1, input);
+    this.updateProfile(athleteId, (profile) => ({
+      ...profile,
+      macrocycles: [...profile.macrocycles, macrocycle],
+    }));
+    return macrocycle;
+  }
+
+  /** Vuelve a repartir los mesociclos del macrociclo con los datos nuevos (descarta los ajustes manuales). */
+  regenerateMacrocycle(athleteId: number, macrocycleId: number, input: MacrocycleInput): void {
+    this.updateProfile(athleteId, (profile) => ({
+      ...profile,
+      macrocycles: profile.macrocycles.map((macrocycle) =>
+        macrocycle.id === macrocycleId ? buildMacrocycle(macrocycleId, input) : macrocycle,
+      ),
+    }));
+  }
+
+  deleteMacrocycle(athleteId: number, macrocycleId: number): void {
+    this.updateProfile(athleteId, (profile) => ({
+      ...profile,
+      macrocycles: profile.macrocycles.filter((macrocycle) => macrocycle.id !== macrocycleId),
+    }));
+  }
+
+  /** Ajusta un mesociclo ya generado (fase, carga u objetivo) sin tocar el resto del plan. */
+  updateMesocycle(
+    athleteId: number,
+    macrocycleId: number,
+    mesocycleId: number,
+    patch: Partial<Pick<Mesocycle, 'phase' | 'load' | 'goal' | 'name'>>,
+  ): void {
+    this.mutateMesocycles(athleteId, macrocycleId, (mesocycle) =>
+      mesocycle.id === mesocycleId ? { ...mesocycle, ...patch } : mesocycle,
+    );
+  }
+
+  /** Ajusta un día del microciclo de un mesociclo (carga, tipo de trabajo u objetivo del día). */
+  updateMicrocycleDay(
+    athleteId: number,
+    macrocycleId: number,
+    mesocycleId: number,
+    weekday: MicrocycleDay['weekday'],
+    patch: Partial<Omit<MicrocycleDay, 'weekday'>>,
+  ): void {
+    this.mutateMesocycles(athleteId, macrocycleId, (mesocycle) =>
+      mesocycle.id !== mesocycleId
+        ? mesocycle
+        : {
+            ...mesocycle,
+            microcycle: mesocycle.microcycle.map((day) =>
+              day.weekday === weekday ? { ...day, ...patch } : day,
+            ),
+          },
+    );
+  }
+
+  private mutateMesocycles(
+    athleteId: number,
+    macrocycleId: number,
+    mutate: (mesocycle: Mesocycle) => Mesocycle,
+  ): void {
+    this.updateProfile(athleteId, (profile) => ({
+      ...profile,
+      macrocycles: profile.macrocycles.map((macrocycle) =>
+        macrocycle.id !== macrocycleId
+          ? macrocycle
+          : { ...macrocycle, mesocycles: macrocycle.mesocycles.map(mutate) },
+      ),
     }));
   }
 
@@ -422,6 +611,18 @@ export class AtletaService {
           competitions: profile.competitions.map((competition) => ({
             ...competition,
             date: new Date(competition.date),
+          })),
+          // Fichas guardadas antes de que existiera la planificación por ciclos.
+          macrocycles: (profile.macrocycles ?? []).map((macrocycle) => ({
+            ...macrocycle,
+            startDate: new Date(macrocycle.startDate),
+            endDate: new Date(macrocycle.endDate),
+            targetDate: macrocycle.targetDate ? new Date(macrocycle.targetDate) : null,
+            mesocycles: macrocycle.mesocycles.map((mesocycle) => ({
+              ...mesocycle,
+              startDate: new Date(mesocycle.startDate),
+              endDate: new Date(mesocycle.endDate),
+            })),
           })),
         };
       }

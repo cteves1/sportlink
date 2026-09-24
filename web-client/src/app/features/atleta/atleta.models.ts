@@ -18,7 +18,8 @@ export interface TrainingDayPlan {
 }
 
 /** Estado de un día planificado dentro de la asistencia mensual del atleta. */
-export type AttendanceDayStatus = 'presente' | 'ausente' | 'justificado' | 'competencia' | 'descanso';
+export type AttendanceDayStatus =
+  'presente' | 'ausente' | 'justificado' | 'competencia' | 'descanso';
 
 /** Asistencia de un día concreto, indexada por clave 'yyyy-mm-dd'. */
 export interface AttendanceDay {
@@ -62,6 +63,64 @@ export interface AnnualGoal {
   longTerm: string;
 }
 
+/**
+ * Fase del mesociclo dentro del macrociclo (periodización clásica): el trabajo va de lo
+ * general a lo específico, se afina antes de competir y se descarga al cerrar el ciclo.
+ */
+export type MesocyclePhase =
+  | 'preparatorio-general'
+  | 'preparatorio-especifico'
+  | 'precompetitivo'
+  | 'competitivo'
+  | 'transicion';
+
+/** Carga de trabajo de un mesociclo o de un día del microciclo. */
+export type TrainingLoad = 'descanso' | 'baja' | 'media' | 'alta' | 'muy-alta';
+
+/** Tipo de preparación que se trabaja en el día, para separar el calendario por contenido. */
+export type WorkType = 'tecnica' | 'tactica' | 'fisica' | 'competencia' | 'recuperacion';
+
+/** Día del microciclo (semana tipo del mesociclo): 1 = lunes … 7 = domingo. */
+export interface MicrocycleDay {
+  weekday: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  load: TrainingLoad;
+  /** `null` en los días de descanso, donde no hay contenido que trabajar. */
+  workType: WorkType | null;
+  goal: string;
+}
+
+/**
+ * Mesociclo: bloque de varias semanas dentro del macrociclo, con una fase, una carga
+ * dominante y un microciclo tipo que define el día a día de esas semanas.
+ */
+export interface Mesocycle {
+  id: number;
+  name: string;
+  phase: MesocyclePhase;
+  startDate: Date;
+  endDate: Date;
+  load: TrainingLoad;
+  goal: string;
+  microcycle: MicrocycleDay[];
+}
+
+/**
+ * Macrociclo: el período largo con un objetivo al final (por ejemplo, un año apuntando al
+ * Campeonato Argentino). Se subdivide en mesociclos, que a su vez definen los microciclos.
+ */
+export interface Macrocycle {
+  id: number;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  /** Competencia o hito al que apunta el ciclo. */
+  targetEvent: string;
+  /** Fecha del objetivo: marca el pico de forma y el final de la fase competitiva. */
+  targetDate: Date | null;
+  goal: string;
+  mesocycles: Mesocycle[];
+}
+
 /** Equipamiento declarado del atleta. */
 export interface EquipmentInfo {
   blade: string;
@@ -91,4 +150,6 @@ export interface EliteAthleteProfile {
   attendance: AttendanceDay[];
   competitions: Competition[];
   annualGoals: AnnualGoal[];
+  /** Planificación por ciclos; vacío hasta que el entrenador genera el primer macrociclo. */
+  macrocycles: Macrocycle[];
 }
