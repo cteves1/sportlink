@@ -227,6 +227,103 @@ function randomAlnum(length: number): string {
   return result;
 }
 
+const DEMO_PLAYING_STYLES: readonly PlayingStyle[] = [
+  'ofensivo',
+  'all-round',
+  'defensivo',
+  'bloqueador',
+];
+
+/** Respuestas de bienvenida de demo, para los jugadores que ya la completaron. */
+function demoWelcomeForm(athlete: Athlete): WelcomeFormAnswers {
+  return {
+    mainGoal: 'competir',
+    shortTermGoal: 'Ganar consistencia en el saque y la devolución.',
+    longTermGoal: 'Subir de categoría en la próxima temporada.',
+    motivation: 'Competir en el circuito con el club.',
+    coachSupport: 'Corrección técnica y planificación semanal.',
+    yearsPlaying: '3-a-5',
+    hasCompeted: true,
+    selfPerceivedLevel: athlete.level,
+    paddleGrip: athlete.paddleGrip,
+    rubberForehand: athlete.rubberForehand,
+    rubberBackhand: athlete.rubberBackhand,
+    playingStyle: athlete.playingStyle,
+    club: athlete.club,
+    specificGoal: athlete.specificGoal,
+    trainingDays: athlete.trainingDays,
+  };
+}
+
+/**
+ * Ficha de demo. Los datos técnicos se recortan al nivel declarado igual que en un alta
+ * real (un principiante no tiene paleta, gomas ni estilo definidos).
+ */
+function demoAthlete(
+  id: number,
+  firstName: string,
+  lastName: string,
+  category: Category,
+  level: PlayerLevel,
+  trainingDays: Weekday[],
+): Athlete {
+  const advanced = level === 'avanzado';
+  const intermediateOrAbove = advanced || level === 'intermedio';
+
+  return {
+    id,
+    firstName,
+    lastName,
+    category,
+    status: 'activo',
+    playerType: 'regular',
+    phone: `+54 9 11 4000-${String(1000 + id).padStart(4, '0')}`,
+    username: `${normalize(firstName)}.${normalize(lastName)}`,
+    tempPassword: `TM-2026-DM${String(id).padStart(2, '0')}`,
+    attendance: 65 + ((id * 7) % 35),
+    birthDate: new Date(1998 + (id % 12), (id * 5) % 12, 1 + (id % 27)),
+    dominantHand: id % 4 === 0 ? 'izquierda' : 'derecha',
+    level,
+    paddleGrip: intermediateOrAbove ? (id % 3 === 0 ? 'lapicero' : 'clasica') : null,
+    rubberForehand: intermediateOrAbove ? 'liso' : null,
+    rubberBackhand: intermediateOrAbove ? (id % 2 === 0 ? 'pupo-corto' : 'liso') : null,
+    playingStyle: intermediateOrAbove ? DEMO_PLAYING_STYLES[id % DEMO_PLAYING_STYLES.length] : null,
+    club: advanced ? 'Club Atlético Norte' : null,
+    specificGoal: advanced ? 'Clasificar al Provincial 2026' : null,
+    trainingDays,
+    welcomeFormCompleted: false,
+    welcomeForm: null,
+  };
+}
+
+/**
+ * Plantel de demo con categorías variadas (de Atleta Elite a Infantil). Se siembra solo
+ * cuando no hay nada guardado, para poder probar los turnos y los avisos de cupo liberado
+ * sin dar de alta a nadie a mano. Los ids y nombres coinciden con los jugadores mock del
+ * calendario, así las asistencias sembradas allí apuntan a estas mismas fichas.
+ */
+function buildDemoAthletes(): Athlete[] {
+  const athletes = [
+    demoAthlete(1, 'Matías', 'Fernández', 1, 'avanzado', [1, 2, 3, 4, 5]),
+    demoAthlete(2, 'Sofía', 'Rojas', 2, 'avanzado', [1, 3, 5]),
+    demoAthlete(3, 'Diego', 'Vargas', 3, 'intermedio', [2, 4]),
+    demoAthlete(4, 'Camila', 'Torres', 3, 'intermedio', [1, 3, 5]),
+    demoAthlete(5, 'Ignacio', 'Soto', 4, 'intermedio', [2, 4, 6]),
+    demoAthlete(6, 'Valentina', 'Muñoz', 4, 'intermedio', [1, 4]),
+    demoAthlete(7, 'Benjamín', 'Castro', 5, 'principiante', [3, 5]),
+    demoAthlete(8, 'Antonia', 'Reyes', 6, 'principiante', [2, 6]),
+    demoAthlete(9, 'Tomás', 'Aguirre', 0, 'avanzado', [1, 2, 3, 4, 5, 6]),
+    demoAthlete(10, 'Martina', 'Paz', 9, 'principiante', [6]),
+  ];
+
+  // Los tres de mayor nivel ya completaron el formulario de bienvenida; el resto queda pendiente.
+  return athletes.map((athlete) =>
+    [1, 2, 9].includes(athlete.id)
+      ? { ...athlete, welcomeFormCompleted: true, welcomeForm: demoWelcomeForm(athlete) }
+      : athlete,
+  );
+}
+
 @Injectable({ providedIn: 'root' })
 export class PlayersService {
   private readonly _athletes = signal<Athlete[]>(this.readStored());
@@ -357,13 +454,13 @@ export class PlayersService {
     }
   }
 
-  /** Lee la lista de jugadores guardada; si no hay nada o está corrupta, arranca vacía. */
+  /** Lee la lista de jugadores guardada; si no hay nada o está corrupta, usa el plantel de demo. */
   private readStored(): Athlete[] {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) return buildDemoAthletes();
     try {
       const parsed = JSON.parse(raw) as Athlete[];
-      if (!Array.isArray(parsed)) return [];
+      if (!Array.isArray(parsed)) return buildDemoAthletes();
       return parsed.map((athlete) => this.hydrate(athlete));
     } catch {
       return [];

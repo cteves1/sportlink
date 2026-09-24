@@ -1,0 +1,134 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4">
+  <div class="my-auto w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+    <div class="mb-4 flex items-start justify-between gap-2">
+      <div>
+        <h2 class="inline-flex items-center gap-2 text-lg font-semibold text-gray-900">
+          <svg lucideCircleAlert [size]="18" class="block text-amber-500"></svg>
+          Se liberó un cupo
+        </h2>
+        <p class="mt-1 text-sm text-gray-500">
+          {{ event().playerName }} canceló el {{ event().shiftLabel }} del
+          <span class="lowercase">{{ dateLabel() }}</span>
+          ({{ event().startTime }} - {{ event().endTime }}).
+        </p>
+      </div>
+      <button
+        type="button"
+        (click)="postpone()"
+        class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        aria-label="Cerrar aviso de cupo liberado"
+      >
+        <svg lucideX [size]="20" class="block"></svg>
+      </button>
+    </div>
+
+    <p class="mb-3 text-sm font-medium text-gray-700">¿Quieres avisar del cupo liberado?</p>
+
+    <div class="mb-3 inline-flex w-full items-center gap-1 rounded-full bg-gray-100 p-1">
+      <button
+        type="button"
+        (click)="setAudience('todos')"
+        class="flex-1 rounded-full px-3 py-1.5 text-xs font-medium"
+        [class.bg-white]="audience() === 'todos'"
+        [class.shadow-sm]="audience() === 'todos'"
+        [class.text-gray-900]="audience() === 'todos'"
+        [class.text-gray-500]="audience() !== 'todos'"
+      >
+        A todos los jugadores
+      </button>
+      <button
+        type="button"
+        (click)="setAudience('seleccionados')"
+        class="flex-1 rounded-full px-3 py-1.5 text-xs font-medium"
+        [class.bg-white]="audience() === 'seleccionados'"
+        [class.shadow-sm]="audience() === 'seleccionados'"
+        [class.text-gray-900]="audience() === 'seleccionados'"
+        [class.text-gray-500]="audience() !== 'seleccionados'"
+      >
+        Elegir jugadores
+      </button>
+    </div>
+
+    @if (candidates().length === 0) {
+      <p
+        class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500"
+      >
+        No hay jugadores a quienes ofrecer el cupo.
+      </p>
+    } @else if (audience() === 'todos') {
+      <p class="rounded-lg bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700">
+        Se avisará a {{ candidates().length }}
+        {{ candidates().length === 1 ? 'jugador' : 'jugadores' }} que no están anotados en este
+        turno.
+      </p>
+    } @else {
+      <ul
+        class="flex max-h-56 flex-col divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200"
+      >
+        @for (player of candidates(); track player.id) {
+          <li>
+            <label class="flex cursor-pointer items-center gap-2 px-3 py-2">
+              <input
+                type="checkbox"
+                [checked]="isSelected(player.id)"
+                (change)="togglePlayer(player.id)"
+                class="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-700"
+              />
+              <span class="min-w-0 flex-1 truncate text-sm text-gray-800">
+                {{ player.firstName }} {{ player.lastName }}
+              </span>
+              <span
+                class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                [class]="categoryBadgeClasses(player.category)"
+              >
+                {{ categoryLabel(player.category) }}
+              </span>
+            </label>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (candidates().length > 0) {
+      <label class="mt-3 inline-flex cursor-pointer items-center gap-2 text-xs text-gray-700">
+        <input
+          type="checkbox"
+          [checked]="alsoWhatsapp()"
+          (change)="toggleAlsoWhatsapp()"
+          class="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-700"
+        />
+        <svg lucideMessageCircle [size]="14" class="block text-gray-400"></svg>
+        También abrir WhatsApp de los destinatarios
+      </label>
+
+      @if (tooManyTabs()) {
+        <p class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+          Son {{ recipients().length }} chats: el navegador puede bloquear algunas pestañas. El
+          aviso igual queda registrado en la app.
+        </p>
+      }
+    }
+
+    <div class="mt-5 flex gap-2">
+      <button
+        type="button"
+        (click)="send()"
+        [disabled]="recipients().length === 0"
+        class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+      >
+        <svg lucideSend [size]="16" class="block"></svg>
+        Enviar notificación
+        @if (recipients().length > 0) {
+          <span>({{ recipients().length }})</span>
+        }
+      </button>
+      <button
+        type="button"
+        (click)="postpone()"
+        class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      >
+        Ahora no
+      </button>
+    </div>
+  </div>
+</div>

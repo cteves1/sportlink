@@ -1,7 +1,9 @@
-import { Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import {
+  LucideBell,
+  LucideCalendarCog,
   LucideCalendarDays,
   LucideCheck,
   LucideChevronLeft,
@@ -16,14 +18,19 @@ import {
   LucideList,
   LucideLock,
   LucideRotateCcw,
+  LucideUserPlus,
   LucideUserRound,
   LucideUsers,
   LucideX,
 } from '@lucide/angular';
 import { CalendarService } from './calendar.service';
-import { Attendance, Presence, TrainingSession, UserRole } from './calendar.models';
+import { FreedSlotsService } from './freed-slots.service';
+import { ShiftConfig } from './shift-config/shift-config';
+import { FreedSlotNotice } from './freed-slot-notice/freed-slot-notice';
+import { Attendance, FreedSlotEvent, Presence, TrainingSession, UserRole } from './calendar.models';
 import { AuthService } from '../../core/auth/auth.service';
 import {
+  Athlete,
   Category,
   PlayersService,
   categoryBadgeClasses,
@@ -53,6 +60,10 @@ interface CalendarCell {
   standalone: true,
   imports: [
     FormsModule,
+    ShiftConfig,
+    FreedSlotNotice,
+    LucideBell,
+    LucideCalendarCog,
     LucideCalendarDays,
     LucideCheck,
     LucideChevronLeft,
@@ -67,6 +78,7 @@ interface CalendarCell {
     LucideList,
     LucideLock,
     LucideRotateCcw,
+    LucideUserPlus,
     LucideUserRound,
     LucideUsers,
     LucideX,
@@ -75,6 +87,7 @@ interface CalendarCell {
 })
 export class Calendario implements OnInit {
   protected readonly calendarService = inject(CalendarService);
+  protected readonly freedSlotsService = inject(FreedSlotsService);
   private readonly authService = inject(AuthService);
   private readonly playersService = inject(PlayersService);
   private readonly route = inject(ActivatedRoute);
@@ -98,6 +111,15 @@ export class Calendario implements OnInit {
           this.calendarService.setCurrentPlayer(authUser.athleteId);
         }
       }
+    });
+
+    // Los turnos configurados se materializan para el período que se está viendo. La
+    // generación se hace `untracked` porque lee y escribe las sesiones: sin esto el
+    // effect se reactivaría con su propio cambio.
+    effect(() => {
+      const { from, to } = this.visibleRange();
+      this.calendarService.templates();
+      untracked(() => this.calendarService.ensureSessionsForRange(from, to));
     });
   }
 
@@ -168,6 +190,20 @@ export class Calendario implements OnInit {
     this.viewMode() === 'mes' ? this.monthGrid() : this.weekGrid(),
   );
 
+  /**
+   * Rango de fechas que se está viendo (6 semanas en vista mes, 1 en vista semana).
+   * No depende de las sesiones, para poder materializarlas sin reactivarse a sí mismo.
+   */
+  private readonly visibleRange = computed<{ from: Date; to: Date }>(() => {
+    const cursor = this.cursorDate();
+    if (this.viewMode() === 'semana') {
+      const from = startOfWeek(cursor);
+      return { from, to: addDays(from, 6) };
+    }
+    const from = startOfWeek(new Date(cursor.getFullYear(), cursor.getMonth(), 1));
+    return { from, to: addDays(from, 41) };
+  });
+
   protected readonly selectedDaySessions = computed<TrainingSession[]>(() => {
     const date = this.selectedDate();
     if (!date) return [];
@@ -237,12 +273,34 @@ export class Calendario implements OnInit {
     return this.calendarService.attendanceFor(session, this.currentPlayer().id);
   }
 
-  protected freeSlots(session: TrainingSession): number {
+  protected freeSlots(session: TrainingSession): number | null {
     return this.calendarService.freeSlots(session);
   }
 
   protected isFull(session: TrainingSession): boolean {
     return !this.calendarService.hasFreeSlot(session);
+  }
+
+  /** Un turno configurado sin tope no se llena nunca. */
+  protected isUnlimited(session: TrainingSession): boolean {
+    return session.capacity === null;
+  }
+
+  /** Ocupación del turno: "3 anotados" si no tiene tope, "3/6 cupos" si lo tiene. */
+  protected occupancyLabel(session: TrainingSession): string {
+    const confirmed = this.confirmedCount(session);
+    if (this.isUnlimited(session)) {
+      return `${confirmed} ${confirmed === 1 ? 'anotado' : 'anotados'}`;
+    }
+    return `${confirmed}/${session.capacity} cupos`;
+  }
+
+  /** Disponibilidad del turno para la Vista Jugador. */
+  protected availabilityLabel(session: TrainingSession): string {
+    if (this.isUnlimited(session)) return 'Sin límite de cupos';
+    const free = this.freeSlots(session) ?? 0;
+    if (free === 0) return 'Turno completo';
+    return `${free} ${free === 1 ? 'cupo libre' : 'cupos libres'}`;
   }
 
   /** Un turno ya pasado no admite reservas ni cancelaciones. */
@@ -390,9 +448,15 @@ export class Calendario implements OnInit {
     this.confirmingKey.set(null);
   }
 
+  /**
+   * Cancela el cupo y le pregunta enseguida al entrenador si quiere avisar que quedó libre.
+   * Desde una cuenta de jugador no se abre el modal (no le corresponde ver a los demás
+   * jugadores): el cupo queda pendiente en la bandeja del entrenador.
+   */
   protected confirmCancel(sessionId: number, attendanceId: number): void {
-    this.calendarService.cancelAttendance(sessionId, attendanceId);
+    const freedSlot = this.calendarService.cancelAttendance(sessionId, attendanceId);
     this.confirmingKey.set(null);
+    if (freedSlot && !this.isPlayerAccount()) this.noticeEventId.set(freedSlot.id);
   }
 
   protected undoCancel(sessionId: number, attendanceId: number): void {
@@ -403,6 +467,88 @@ export class Calendario implements OnInit {
     return this.confirmingKey() === `${sessionId}:${attendanceId}`;
   }
 
+  // ------------------------------------------------------------------
+  // Configuración del calendario (Vista Entrenador)
+  // ------------------------------------------------------------------
+
+  protected readonly configOpen = signal(false);
+
+  protected openConfig(): void {
+    this.calendarService.setRole('entrenador');
+    this.configOpen.set(true);
+  }
+
+  protected closeConfig(): void {
+    this.configOpen.set(false);
+  }
+
+  // ------------------------------------------------------------------
+  // Aviso de cupo liberado (Vista Entrenador)
+  // ------------------------------------------------------------------
+
+  /** Cupo liberado que está mostrando el modal de aviso; `null` = modal cerrado. */
+  protected readonly noticeEventId = signal<number | null>(null);
+  /** Cantidad de destinatarios del último aviso enviado, para el cartel de confirmación. */
+  protected readonly lastNotifiedCount = signal<number | null>(null);
+
+  protected readonly pendingFreedSlots = this.freedSlotsService.pending;
+
+  protected readonly noticeEvent = computed<FreedSlotEvent | null>(() => {
+    const id = this.noticeEventId();
+    if (id === null) return null;
+    return this.freedSlotsService.events().find((event) => event.id === id) ?? null;
+  });
+
+  /** Reabre el aviso de un cupo que quedó pendiente en la bandeja. */
+  protected openFreedSlotNotice(eventId: number): void {
+    this.noticeEventId.set(eventId);
+  }
+
+  protected closeFreedSlotNotice(): void {
+    this.noticeEventId.set(null);
+  }
+
+  protected onFreedSlotNotified(recipients: number): void {
+    this.noticeEventId.set(null);
+    this.lastNotifiedCount.set(recipients);
+  }
+
+  protected dismissLastNotified(): void {
+    this.lastNotifiedCount.set(null);
+  }
+
+  protected dismissFreedSlot(eventId: number): void {
+    this.freedSlotsService.dismiss(eventId);
+  }
+
+  // ------------------------------------------------------------------
+  // Alta puntual de un jugador en un turno (Vista Entrenador)
+  // ------------------------------------------------------------------
+
+  /** Turno cuyo selector de "agregar jugador" está abierto. */
+  protected readonly addPlayerSessionId = signal<number | null>(null);
+
+  protected toggleAddPlayer(sessionId: number): void {
+    this.addPlayerSessionId.update((current) => (current === sessionId ? null : sessionId));
+  }
+
+  /** Jugadores activos que todavía no tienen su cupo confirmado en el turno. */
+  protected addablePlayers(session: TrainingSession): Athlete[] {
+    const confirmed = new Set(
+      session.attendances
+        .filter((attendance) => attendance.status === 'confirmado')
+        .map((attendance) => attendance.playerId),
+    );
+    return this.playersService
+      .athletes()
+      .filter((athlete) => athlete.status === 'activo' && !confirmed.has(athlete.id));
+  }
+
+  protected addPlayerToSession(sessionId: number, athlete: Athlete): void {
+    this.calendarService.addAthleteToSession(sessionId, athlete);
+    this.addPlayerSessionId.set(null);
+  }
+
   protected confirmedCount(session: TrainingSession): number {
     return this.calendarService.confirmedCount(session);
   }
@@ -411,13 +557,39 @@ export class Calendario implements OnInit {
     return cell.sessions.reduce((sum, s) => sum + this.confirmedCount(s), 0);
   }
 
-  protected dayTotalCapacity(cell: CalendarCell): number {
-    return cell.sessions.reduce((sum, s) => sum + s.capacity, 0);
+  /** Suma de topes del día; `null` si algún turno no tiene límite. */
+  protected dayTotalCapacity(cell: CalendarCell): number | null {
+    if (cell.sessions.some((s) => this.isUnlimited(s))) return null;
+    return cell.sessions.reduce((sum, s) => sum + (s.capacity ?? 0), 0);
   }
 
-  /** Cupos libres sumando todos los turnos del día, para destacar dónde hay lugar. */
-  protected dayTotalFreeSlots(cell: CalendarCell): number {
-    return cell.sessions.reduce((sum, s) => sum + this.freeSlots(s), 0);
+  /** Cupos libres sumando todos los turnos del día; `null` si algún turno no tiene límite. */
+  protected dayTotalFreeSlots(cell: CalendarCell): number | null {
+    if (cell.sessions.some((s) => this.isUnlimited(s))) return null;
+    return cell.sessions.reduce((sum, s) => sum + (this.freeSlots(s) ?? 0), 0);
+  }
+
+  /** Ocupación del día en la celda: "5 anotados" si hay turnos sin tope, "5/12 cupos" si no. */
+  protected dayOccupancyLabel(cell: CalendarCell): string {
+    const confirmed = this.dayTotalConfirmed(cell);
+    const capacity = this.dayTotalCapacity(cell);
+    if (capacity === null) {
+      return `${confirmed} ${confirmed === 1 ? 'anotado' : 'anotados'}`;
+    }
+    return `${confirmed}/${capacity} cupos`;
+  }
+
+  /** Disponibilidad del día en la celda; vacío cuando no hay nada que destacar. */
+  protected dayAvailabilityLabel(cell: CalendarCell): string {
+    const free = this.dayTotalFreeSlots(cell);
+    if (free === null) return 'Con cupo';
+    if (free === 0) return 'Completo';
+    return `${free} ${free === 1 ? 'cupo libre' : 'cupos libres'}`;
+  }
+
+  /** True cuando el día no tiene ningún lugar disponible (solo aplica a turnos con tope). */
+  protected isDayFull(cell: CalendarCell): boolean {
+    return this.dayTotalFreeSlots(cell) === 0;
   }
 
   protected formatDayNumber(date: Date): number {
@@ -435,8 +607,10 @@ export class Calendario implements OnInit {
   /** Clases del badge de ocupación del día: rojo si está lleno, ámbar si casi lleno, verde si hay cupo amplio. */
   protected dayOccupancyClasses(cell: CalendarCell): string {
     if (cell.sessions.length === 0) return 'bg-gray-100 text-gray-400';
-    const confirmed = this.dayTotalConfirmed(cell);
     const capacity = this.dayTotalCapacity(cell);
+    // Sin tope nunca se llena: siempre se muestra en el color de "hay lugar".
+    if (capacity === null) return 'bg-brand-100 text-brand-700';
+    const confirmed = this.dayTotalConfirmed(cell);
     const ratio = capacity === 0 ? 0 : confirmed / capacity;
     if (ratio >= 1) return 'bg-red-100 text-red-700';
     if (ratio >= 0.7) return 'bg-amber-100 text-amber-700';

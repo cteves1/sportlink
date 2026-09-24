@@ -20,6 +20,11 @@ export function startOfWeek(date: Date): Date {
   return addDays(date, -offset);
 }
 
+/** Día de la semana de una fecha con el criterio de la app: 1 = lunes … 7 = domingo. */
+export function weekdayOf(date: Date): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
+  return (((date.getDay() + 6) % 7) + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+}
+
 /** Clave estable 'yyyy-mm-dd' en horario local, usada para agrupar/indexar por día. */
 export function dateKey(date: Date): string {
   const y = date.getFullYear();

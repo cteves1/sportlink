@@ -1,0 +1,256 @@
+<div class="fixed inset-0 z-40 bg-black/30" (click)="close()"></div>
+<aside
+  class="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto bg-white p-5 shadow-xl"
+>
+  <div class="mb-4 flex items-start justify-between gap-2">
+    <div>
+      <p class="text-xs font-medium uppercase tracking-wide text-gray-400">Configuración</p>
+      <h2 class="text-lg font-semibold text-gray-900">Mi calendario</h2>
+      <p class="mt-1 text-xs text-gray-500">
+        Define la jornada y el horario de cada turno, y anota a los jugadores que entrenan en él.
+      </p>
+    </div>
+    <button
+      type="button"
+      (click)="close()"
+      class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+      aria-label="Cerrar configuración del calendario"
+    >
+      <svg lucideX [size]="20" class="block"></svg>
+    </button>
+  </div>
+
+  <!-- Turnos ya configurados -->
+  <div class="flex flex-col gap-3">
+    @if (templates().length === 0) {
+      <p
+        class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500"
+      >
+        Todavía no configuraste ningún turno.
+      </p>
+    }
+
+    @for (template of templates(); track template.id) {
+      <div class="rounded-lg border border-gray-200 p-3">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-gray-900">{{ template.label }}</p>
+            <p class="mt-0.5 inline-flex items-center gap-1.5 text-xs text-gray-500">
+              <svg lucideClock [size]="14" class="block text-gray-400"></svg>
+              {{ template.startTime }} - {{ template.endTime }}
+            </p>
+            <p class="mt-1 text-xs font-medium text-brand-700">{{ weekdaysLabel(template) }}</p>
+            <p class="mt-1 text-xs text-gray-500">{{ capacityLabel(template) }}</p>
+            <p class="mt-1 truncate text-xs text-gray-500">{{ playersLabel(template) }}</p>
+          </div>
+
+          <div class="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              (click)="editShift(template)"
+              class="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              [attr.aria-label]="'Editar ' + template.label"
+            >
+              <svg lucidePencil [size]="16" class="block"></svg>
+            </button>
+            <button
+              type="button"
+              (click)="requestDelete(template.id)"
+              class="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+              [attr.aria-label]="'Eliminar ' + template.label"
+            >
+              <svg lucideTrash2 [size]="16" class="block"></svg>
+            </button>
+          </div>
+        </div>
+
+        @if (confirmingDeleteId() === template.id) {
+          <div class="mt-3 flex flex-col gap-2 rounded-lg bg-red-50 p-3">
+            <p class="text-xs font-medium text-red-700">
+              Se eliminarán los turnos futuros de esta jornada. El historial pasado se conserva.
+            </p>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                (click)="confirmDelete(template.id)"
+                class="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+              >
+                Sí, eliminar
+              </button>
+              <button
+                type="button"
+                (click)="dismissDelete()"
+                class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                No
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  @if (!formOpen()) {
+    <button
+      type="button"
+      (click)="openNewShift()"
+      class="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+    >
+      <svg lucidePlus [size]="16" class="block"></svg>
+      Agregar turno
+    </button>
+  } @else {
+    <!-- Formulario de jornada + turno -->
+    <form [formGroup]="form" (ngSubmit)="submit()" class="mt-4 flex flex-col gap-4">
+      <h3 class="text-sm font-semibold text-gray-900">
+        {{ editingId() === null ? 'Nuevo turno' : 'Editar turno' }}
+      </h3>
+
+      <div class="flex flex-col gap-1">
+        <label for="shiftLabel" class="text-xs font-medium text-gray-700">Nombre del turno</label>
+        <input
+          id="shiftLabel"
+          type="text"
+          formControlName="label"
+          placeholder="Turno Mañana"
+          class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+        />
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1">
+          <label for="startTime" class="text-xs font-medium text-gray-700">Hora de inicio</label>
+          <input
+            id="startTime"
+            type="time"
+            formControlName="startTime"
+            class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label for="endTime" class="text-xs font-medium text-gray-700">Hora de fin</label>
+          <input
+            id="endTime"
+            type="time"
+            formControlName="endTime"
+            class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          />
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2" formGroupName="weekdays">
+        <span class="text-xs font-medium text-gray-700">Jornada</span>
+        <div class="flex flex-wrap gap-2">
+          @for (day of weekdays; track day.value) {
+            <label
+              class="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <input
+                type="checkbox"
+                [formControlName]="dayControlName(day.value)"
+                class="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-700"
+              />
+              {{ day.short }}
+            </label>
+          }
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label
+          class="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-gray-700"
+        >
+          <input
+            type="checkbox"
+            formControlName="unlimited"
+            class="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-700"
+          />
+          Sin límite de jugadores
+        </label>
+        @if (!unlimited()) {
+          <div class="flex flex-col gap-1">
+            <label for="capacity" class="text-xs font-medium text-gray-700">Máximo de cupos</label>
+            <input
+              id="capacity"
+              type="number"
+              min="1"
+              formControlName="capacity"
+              class="w-28 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            />
+          </div>
+        }
+      </div>
+
+      <!-- Jugadores fijos del turno -->
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-gray-700">
+            Jugadores del turno ({{ selectedPlayerIds().length }})
+          </span>
+          @if (availablePlayers().length > 0) {
+            <button
+              type="button"
+              (click)="toggleAllPlayers()"
+              class="text-xs font-medium text-brand-700 hover:underline"
+            >
+              Todos / ninguno
+            </button>
+          }
+        </div>
+
+        @if (availablePlayers().length === 0) {
+          <p class="rounded-lg border border-dashed border-gray-300 p-3 text-xs text-gray-500">
+            No hay jugadores activos cargados. Dalos de alta en Jugadores para poder anotarlos.
+          </p>
+        } @else {
+          <ul
+            class="flex max-h-56 flex-col divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200"
+          >
+            @for (player of availablePlayers(); track player.id) {
+              <li>
+                <label class="flex cursor-pointer items-center gap-2 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    [checked]="isPlayerSelected(player.id)"
+                    (change)="togglePlayer(player.id)"
+                    class="h-3.5 w-3.5 rounded border-gray-300 text-brand-600 focus:ring-brand-700"
+                  />
+                  <span class="min-w-0 flex-1 truncate text-sm text-gray-800">
+                    {{ player.firstName }} {{ player.lastName }}
+                  </span>
+                  <span
+                    class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                    [class]="categoryBadgeClasses(player.category)"
+                  >
+                    {{ categoryLabel(player.category) }}
+                  </span>
+                </label>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      @if (error()) {
+        <p class="rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700">{{ error() }}</p>
+      }
+
+      <div class="flex gap-2">
+        <button
+          type="submit"
+          class="flex-1 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          Guardar turno
+        </button>
+        <button
+          type="button"
+          (click)="cancelForm()"
+          class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  }
+</aside>
