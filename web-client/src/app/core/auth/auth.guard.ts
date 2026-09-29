@@ -14,7 +14,7 @@ export const authGuard: CanActivateFn = () => {
   return router.createUrlTree(['/login']);
 };
 
-/** Protege rutas exclusivas del entrenador (ej. Jugadores) frente a accesos directos por URL de un jugador. */
+/** Protege rutas exclusivas del entrenador frente a accesos directos por URL de un jugador. */
 export const adminGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);

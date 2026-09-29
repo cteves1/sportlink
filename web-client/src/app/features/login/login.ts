@@ -22,14 +22,14 @@ export class Login {
     password: ['test', [Validators.required, Validators.minLength(4)]],
   });
 
-  protected submit(): void {
+  protected async submit(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
     const { email, password } = this.form.getRawValue();
-    const result = this.authService.login(email, password);
+    const result = await this.authService.login(email, password);
 
     if (!result.success) {
       this.errorMessage.set(result.error ?? 'Credenciales inválidas. Intenta nuevamente.');

@@ -15,8 +15,8 @@ export class NavbarTop {
 
   readonly toggleMobileMenu = output<void>();
 
-  protected logout(): void {
-    this.authService.logout();
+  protected async logout(): Promise<void> {
+    await this.authService.logout();
     void this.router.navigate(['/login']);
   }
 }
