@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { addDays, atMidnight, dateKey, weekdayOf } from '../../core/date/calendar-dates';
-import { Athlete, PlayersService, Weekday } from '../../core/players/players.service';
+import { Athlete, PlayersService } from '../../core/players/players.service';
+import { SupabaseService } from '../../core/supabase/supabase.service';
 import {
   Attendance,
   FreedSlotEvent,
@@ -25,18 +26,37 @@ const MOCK_PLAYERS: MockPlayer[] = [
   { id: 8, name: 'Antonia Reyes', category: 6 },
 ];
 
-// Claves versionadas: las anteriores contenían los turnos de demo sembrados a mano, que ya
-// no existen. Se descartan al arrancar para que el calendario quede vacío hasta configurarlo.
-const STORAGE_KEY = 'tt-trainer-calendar-sessions-v2';
-const TEMPLATES_STORAGE_KEY = 'tt-trainer-shift-templates-v2';
-const LEGACY_STORAGE_KEYS = ['tt-trainer-calendar-sessions', 'tt-trainer-shift-templates'];
+interface DbSessionAttendance {
+  id: number;
+  athlete_id: number;
+  status: Attendance['status'];
+  presence: Presence;
+  athlete: {
+    first_name: string;
+    last_name: string;
+    category: number;
+  } | null;
+}
 
-function dropLegacyStorage(): void {
-  try {
-    for (const key of LEGACY_STORAGE_KEYS) localStorage.removeItem(key);
-  } catch {
-    // Almacenamiento no disponible: no hay nada viejo que limpiar.
-  }
+interface DbTrainingSession {
+  id: number;
+  session_date: string;
+  shift_label: string;
+  start_time: string;
+  end_time: string;
+  capacity: number | null;
+  template_id: number | null;
+  session_attendances: DbSessionAttendance[] | null;
+}
+
+interface DbShiftTemplate {
+  id: number;
+  label: string;
+  start_time: string;
+  end_time: string;
+  capacity: number | null;
+  weekdays: number[];
+  player_ids: number[];
 }
 
 /** Datos que el entrenador define de un turno; el id lo asigna el servicio. */
@@ -53,6 +73,7 @@ export interface OneOffSessionInput {
 
 @Injectable({ providedIn: 'root' })
 export class CalendarService {
+  private readonly supabase = inject(SupabaseService).client;
   private readonly playersService = inject(PlayersService);
   private readonly freedSlots = inject(FreedSlotsService);
 
@@ -60,12 +81,13 @@ export class CalendarService {
   readonly players: readonly MockPlayer[] = MOCK_PLAYERS;
 
   /** Fuente única de verdad: al mutarse, tanto la Vista Entrenador como la Vista
-   *  Jugador (que leen este mismo signal) se recalculan y repintan automáticamente.
-   *  Arranca vacío: los turnos aparecen recién cuando el entrenador configura su jornada. */
-  readonly sessions = signal<TrainingSession[]>(this.readStored());
+   *  Jugador (que leen este mismo signal) se recalculan y repintan automáticamente. */
+  readonly sessions = signal<TrainingSession[]>([]);
 
   readonly role = signal<UserRole>('entrenador');
   readonly currentPlayerId = signal<number>(MOCK_PLAYERS[0].id);
+
+  readonly templates = signal<ShiftTemplate[]>([]);
 
   /** Sesiones agrupadas por día (clave 'yyyy-mm-dd') para pintar la grilla sin recorrer todo el arreglo por celda. */
   readonly sessionsByDateKey = computed<Map<string, TrainingSession[]>>(() => {
@@ -80,49 +102,117 @@ export class CalendarService {
   });
 
   // ------------------------------------------------------------------
+  // Carga inicial
+  // ------------------------------------------------------------------
+
+  async loadTemplates(): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('shift_templates')
+      .select('*')
+      .order('start_time')
+      .returns<DbShiftTemplate[]>();
+
+    if (error) {
+      console.error('Error cargando plantillas:', error);
+      return;
+    }
+
+    this.templates.set((data ?? []).map((row) => this.mapTemplateFromDb(row)));
+  }
+
+  async loadSessionsForRange(from: Date, to: Date): Promise<void> {
+    const fromStr = from.toISOString().split('T')[0];
+    const toStr = to.toISOString().split('T')[0];
+
+    const { data, error } = await this.supabase
+      .from('training_sessions')
+      .select(
+        `
+        *,
+        session_attendances (
+          id,
+          athlete_id,
+          status,
+          presence,
+          athlete:athletes (first_name, last_name, category)
+        )
+      `,
+      )
+      .gte('session_date', fromStr)
+      .lte('session_date', toStr)
+      .order('session_date', { ascending: true })
+      .returns<DbTrainingSession[]>();
+
+    if (error) {
+      console.error('Error cargando sesiones:', error);
+      return;
+    }
+
+    this.sessions.set((data ?? []).map((row) => this.mapSessionFromDb(row)));
+  }
+
+  // ------------------------------------------------------------------
   // Configuración del calendario: jornada, turnos y jugadores fijos
   // ------------------------------------------------------------------
 
-  /** Turnos configurados por el entrenador, de los que se derivan las sesiones del calendario. */
-  readonly templates = signal<ShiftTemplate[]>(this.readStoredTemplates());
+  async addTemplate(input: ShiftTemplateInput): Promise<ShiftTemplate | null> {
+    const user = (await this.supabase.auth.getUser()).data.user;
+    const { data, error } = await this.supabase
+      .from('shift_templates')
+      .insert({
+        label: input.label,
+        start_time: input.startTime,
+        end_time: input.endTime,
+        capacity: input.capacity,
+        weekdays: [...input.weekdays].sort((a, b) => a - b),
+        player_ids: input.playerIds,
+        created_by: user?.id,
+      })
+      .select('*')
+      .single<DbShiftTemplate>();
 
-  addTemplate(input: ShiftTemplateInput): ShiftTemplate {
-    const template: ShiftTemplate = {
-      ...input,
-      id: Math.max(0, ...this.templates().map((t) => t.id)) + 1,
-      weekdays: [...input.weekdays].sort((a, b) => a - b),
-    };
-    this.templates.update((list) => [...list, template]);
-    this.persistTemplates();
+    if (error || !data) {
+      console.error('Error creando plantilla:', error);
+      return null;
+    }
+
+    const template = this.mapTemplateFromDb(data);
+    this.templates.update((list) => [...list, template].sort((a, b) => a.startTime.localeCompare(b.startTime)));
     return template;
   }
 
-  /**
-   * Reemplaza la configuración de un turno. Las sesiones futuras ya materializadas se
-   * descartan para que se vuelvan a generar con el horario, la jornada y los jugadores
-   * nuevos; las pasadas se conservan como historial de asistencia.
-   */
-  updateTemplate(templateId: number, input: ShiftTemplateInput): void {
-    this.templates.update((list) =>
-      list.map((template) =>
-        template.id === templateId
-          ? {
-              ...template,
-              ...input,
-              weekdays: [...input.weekdays].sort((a, b) => a - b),
-            }
-          : template,
-      ),
-    );
-    this.persistTemplates();
-    this.dropUpcomingSessionsOf(templateId);
+  async updateTemplate(templateId: number, input: ShiftTemplateInput): Promise<void> {
+    const { error } = await this.supabase
+      .from('shift_templates')
+      .update({
+        label: input.label,
+        start_time: input.startTime,
+        end_time: input.endTime,
+        capacity: input.capacity,
+        weekdays: [...input.weekdays].sort((a, b) => a - b),
+        player_ids: input.playerIds,
+      })
+      .eq('id', templateId);
+
+    if (error) {
+      console.error('Error actualizando plantilla:', error);
+      return;
+    }
+
+    await this.loadTemplates();
+    await this.dropUpcomingSessionsOf(templateId);
   }
 
-  /** Elimina un turno de la configuración y sus sesiones futuras (el historial pasado queda intacto). */
-  deleteTemplate(templateId: number): void {
-    this.templates.update((list) => list.filter((template) => template.id !== templateId));
-    this.persistTemplates();
-    this.dropUpcomingSessionsOf(templateId);
+  async deleteTemplate(templateId: number): Promise<void> {
+    const { error } = await this.supabase.from('shift_templates').delete().eq('id', templateId);
+
+    if (error) {
+      console.error('Error eliminando plantilla:', error);
+      return;
+    }
+
+    this.templates.update((list) => list.filter((t) => t.id !== templateId));
+    await this.dropUpcomingSessionsOf(templateId);
   }
 
   /**
@@ -130,11 +220,16 @@ export class CalendarService {
    * Es idempotente: no duplica una sesión ya creada por la misma plantilla ni pisa una sesión
    * existente en el mismo horario, y nunca inventa turnos en el pasado.
    */
-  ensureSessionsForRange(from: Date, to: Date): void {
+  async ensureSessionsForRange(from: Date, to: Date): Promise<void> {
     const templates = this.templates();
-    if (templates.length === 0) return;
+    if (templates.length === 0) {
+      await this.loadSessionsForRange(from, to);
+      return;
+    }
 
+    await this.loadSessionsForRange(from, to);
     const current = this.sessions();
+
     const taken = new Set<string>();
     for (const session of current) {
       const key = dateKey(session.date);
@@ -145,8 +240,7 @@ export class CalendarService {
     const today = atMidnight(new Date());
     const start = atMidnight(from);
     const end = atMidnight(to);
-    const created: TrainingSession[] = [];
-    let nextId = Math.max(0, ...current.map((session) => session.id)) + 1;
+    const created: Omit<DbTrainingSession, 'id' | 'session_attendances'>[] = [];
 
     for (let date = start; date.getTime() <= end.getTime(); date = addDays(date, 1)) {
       if (date.getTime() < today.getTime()) continue;
@@ -160,18 +254,25 @@ export class CalendarService {
         }
         taken.add(`t${template.id}@${key}`);
         taken.add(`h${template.startTime}@${key}`);
-        created.push(this.sessionFromTemplate(nextId++, template, date));
+        created.push(this.sessionInsertFromTemplate(template, date));
       }
     }
 
     if (created.length === 0) return;
-    this.sessions.update((sessions) => [...sessions, ...created]);
-    this.persist();
+
+    const { error } = await this.supabase.from('training_sessions').insert(created);
+
+    if (error) {
+      console.error('Error generando sesiones:', error);
+      return;
+    }
+
+    await this.loadSessionsForRange(from, to);
   }
 
   /** Agrega un jugador de la base real a un turno concreto (alta puntual del entrenador). */
-  addAthleteToSession(sessionId: number, athlete: Athlete): void {
-    this.bookAttendance(sessionId, {
+  async addAthleteToSession(sessionId: number, athlete: Athlete): Promise<void> {
+    await this.bookAttendance(sessionId, {
       id: athlete.id,
       name: `${athlete.firstName} ${athlete.lastName}`,
       category: athlete.category,
@@ -183,7 +284,7 @@ export class CalendarService {
    * jugador), sin plantilla detrás. Devuelve `null` si ya hay un turno a esa misma hora ese
    * día, para no pisar el turno existente ni bloquear la generación de la jornada.
    */
-  addSessionOn(date: Date, input: OneOffSessionInput): TrainingSession | null {
+  async addSessionOn(date: Date, input: OneOffSessionInput): Promise<TrainingSession | null> {
     const day = atMidnight(date);
     const key = dateKey(day);
     const clash = this.sessions().some(
@@ -191,68 +292,67 @@ export class CalendarService {
     );
     if (clash) return null;
 
-    const session: TrainingSession = {
-      id: Math.max(0, ...this.sessions().map((candidate) => candidate.id)) + 1,
-      date: day,
-      shiftLabel: input.label,
-      startTime: input.startTime,
-      endTime: input.endTime,
-      capacity: input.capacity,
-      attendances: this.attendancesOf(input.playerIds),
-      templateId: null,
-    };
+    const { data, error } = await this.supabase
+      .from('training_sessions')
+      .insert({
+        session_date: day.toISOString().split('T')[0],
+        shift_label: input.label,
+        start_time: input.startTime,
+        end_time: input.endTime,
+        capacity: input.capacity,
+        template_id: null,
+      })
+      .select('*')
+      .single<DbTrainingSession>();
 
+    if (error || !data) {
+      console.error('Error creando sesión puntual:', error);
+      return null;
+    }
+
+    const session = this.mapSessionFromDb(data);
     this.sessions.update((sessions) => [...sessions, session]);
-    this.persist();
     return session;
   }
 
   /** Elimina un turno puntual (los generados por una plantilla se quitan desde la configuración). */
-  removeSession(sessionId: number): void {
+  async removeSession(sessionId: number): Promise<void> {
+    const { error } = await this.supabase
+      .from('training_sessions')
+      .delete()
+      .eq('id', sessionId)
+      .is('template_id', null);
+
+    if (error) {
+      console.error('Error eliminando sesión puntual:', error);
+      return;
+    }
+
     this.sessions.update((sessions) => sessions.filter((session) => session.id !== sessionId));
-    this.persist();
-  }
-
-  /** Sesión concreta a partir de una plantilla, con sus jugadores fijos ya confirmados. */
-  private sessionFromTemplate(id: number, template: ShiftTemplate, date: Date): TrainingSession {
-    return {
-      id,
-      date,
-      shiftLabel: template.label,
-      startTime: template.startTime,
-      endTime: template.endTime,
-      capacity: template.capacity,
-      attendances: this.attendancesOf(template.playerIds),
-      templateId: template.id,
-    };
-  }
-
-  /** Asistencias confirmadas de los jugadores indicados; los que ya no existen se ignoran. */
-  private attendancesOf(playerIds: readonly number[]): Attendance[] {
-    const athletes = this.playersService.athletes();
-    return playerIds
-      .map((playerId) => athletes.find((athlete) => athlete.id === playerId))
-      .filter((athlete): athlete is Athlete => athlete !== undefined)
-      .map((athlete, index) => ({
-        id: index + 1,
-        playerId: athlete.id,
-        playerName: `${athlete.firstName} ${athlete.lastName}`,
-        category: athlete.category,
-        status: 'confirmado' as const,
-        presence: null,
-      }));
   }
 
   /** Descarta las sesiones de hoy en adelante generadas por una plantilla que cambió o se borró. */
-  private dropUpcomingSessionsOf(templateId: number): void {
+  private async dropUpcomingSessionsOf(templateId: number): Promise<void> {
     const today = atMidnight(new Date());
+    const todayStr = today.toISOString().split('T')[0];
+
+    const { error } = await this.supabase
+      .from('training_sessions')
+      .delete()
+      .eq('template_id', templateId)
+      .gte('session_date', todayStr);
+
+    if (error) {
+      console.error('Error descartando sesiones futuras:', error);
+      return;
+    }
+
     this.sessions.update((sessions) =>
       sessions.filter(
         (session) =>
           session.templateId !== templateId || atMidnight(session.date).getTime() < today.getTime(),
       ),
     );
-    this.persist();
   }
 
   setRole(role: UserRole): void {
@@ -282,37 +382,35 @@ export class CalendarService {
   /**
    * Reserva un cupo para un jugador. Si ya tenía una asistencia cancelada en el turno la
    * restaura; si no, agrega una nueva. No hace nada si el turno está completo o ya reservó.
-   *
-   * El jugador llega desde la cuenta autenticada (`PlayersService`) o desde el selector mock
-   * de la Vista Jugador; ambas numeraciones de id conviven en la demo sin backend.
    */
-  bookAttendance(sessionId: number, player: { id: number; name: string; category: number }): void {
+  async bookAttendance(
+    sessionId: number,
+    player: { id: number; name: string; category: number },
+  ): Promise<void> {
     const session = this.sessions().find((s) => s.id === sessionId);
     if (!session || !this.hasFreeSlot(session)) return;
 
     const existing = this.attendanceFor(session, player.id);
     if (existing) {
       if (existing.status === 'ausente') {
-        this.restoreAttendance(sessionId, existing.id);
+        await this.restoreAttendance(sessionId, existing.id);
       }
       return;
     }
 
-    const newAttendance: Attendance = {
-      id: Math.max(0, ...session.attendances.map((a) => a.id)) + 1,
-      playerId: player.id,
-      playerName: player.name,
-      category: player.category,
+    const { error } = await this.supabase.from('session_attendances').insert({
+      session_id: sessionId,
+      athlete_id: player.id,
       status: 'confirmado',
-      presence: null,
-    };
+    });
 
-    this.sessions.update((sessions) =>
-      sessions.map((s) =>
-        s.id === sessionId ? { ...s, attendances: [...s.attendances, newAttendance] } : s,
-      ),
-    );
-    this.persist();
+    if (error) {
+      console.error('Error reservando asistencia:', error);
+      return;
+    }
+
+    // Refresca la sesión para reflejar la nueva asistencia (incluyendo nombre y categoría).
+    await this.refreshSession(sessionId);
   }
 
   /** Turnos programados para una fecha concreta. */
@@ -325,7 +423,17 @@ export class CalendarService {
   }
 
   /** Registra (o limpia, con `null`) la presencia real de un jugador en un turno. */
-  setPresence(sessionId: number, attendanceId: number, presence: Presence): void {
+  async setPresence(sessionId: number, attendanceId: number, presence: Presence): Promise<void> {
+    const { error } = await this.supabase
+      .from('session_attendances')
+      .update({ presence })
+      .eq('id', attendanceId);
+
+    if (error) {
+      console.error('Error registrando presencia:', error);
+      return;
+    }
+
     this.sessions.update((sessions) =>
       sessions.map((session) =>
         session.id !== sessionId
@@ -338,7 +446,6 @@ export class CalendarService {
             },
       ),
     );
-    this.persist();
   }
 
   attendanceFor(session: TrainingSession, playerId: number): Attendance | undefined {
@@ -350,93 +457,122 @@ export class CalendarService {
    * Entrenador y registra el cupo liberado para poder avisar a los demás jugadores.
    * Devuelve el evento creado (o `null` si la asistencia ya no existe).
    */
-  cancelAttendance(sessionId: number, attendanceId: number): FreedSlotEvent | null {
-    const session = this.sessions().find((s) => s.id === sessionId);
-    const attendance = session?.attendances.find((a) => a.id === attendanceId);
-    if (!session || !attendance) return null;
+  async cancelAttendance(sessionId: number, attendanceId: number): Promise<FreedSlotEvent | null> {
+    const { error } = await this.supabase
+      .from('session_attendances')
+      .update({ status: 'ausente' })
+      .eq('id', attendanceId);
 
-    this.updateAttendanceStatus(sessionId, attendanceId, 'ausente');
-    return this.freedSlots.register(session, attendance);
+    if (error) {
+      console.error('Error cancelando asistencia:', error);
+      return null;
+    }
+
+    await this.refreshSession(sessionId);
+    await this.freedSlots.loadEvents();
+
+    const event = this.freedSlots
+      .events()
+      .find((e) => e.sessionId === sessionId && e.attendanceId === attendanceId);
+    return event ?? null;
   }
 
   /** Revierte una cancelación (útil para probar el flujo repetidamente en la demo). */
-  restoreAttendance(sessionId: number, attendanceId: number): void {
-    this.updateAttendanceStatus(sessionId, attendanceId, 'confirmado');
-    this.freedSlots.removeFor(sessionId, attendanceId);
-  }
+  async restoreAttendance(sessionId: number, attendanceId: number): Promise<void> {
+    const { error } = await this.supabase
+      .from('session_attendances')
+      .update({ status: 'confirmado' })
+      .eq('id', attendanceId);
 
-  private updateAttendanceStatus(
-    sessionId: number,
-    attendanceId: number,
-    status: Attendance['status'],
-  ): void {
-    this.sessions.update((sessions) =>
-      sessions.map((session) =>
-        session.id !== sessionId
-          ? session
-          : {
-              ...session,
-              attendances: session.attendances.map((attendance) =>
-                attendance.id === attendanceId ? { ...attendance, status } : attendance,
-              ),
-            },
-      ),
-    );
-    this.persist();
-  }
-
-  /** Persiste las sesiones (con sus asistencias) en localStorage para que sobrevivan a recargas. */
-  private persist(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.sessions()));
-    } catch {
-      // Almacenamiento no disponible (modo privado, cuota excedida, etc.): se ignora silenciosamente.
+    if (error) {
+      console.error('Error restaurando asistencia:', error);
+      return;
     }
+
+    await this.refreshSession(sessionId);
+    await this.freedSlots.loadEvents();
   }
 
-  /** Lee las sesiones guardadas; si no hay nada o está corrupto, el calendario arranca vacío. */
-  private readStored(): TrainingSession[] {
-    dropLegacyStorage();
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as TrainingSession[];
-      if (!Array.isArray(parsed)) return [];
-      // Normaliza los registros guardados antes de que existieran los turnos configurables.
-      return parsed.map((session) => ({
-        ...session,
-        date: new Date(session.date),
-        capacity: session.capacity ?? null,
-        templateId: session.templateId ?? null,
-      }));
-    } catch {
-      return [];
+  // ------------------------------------------------------------------
+  // Helpers
+  // ------------------------------------------------------------------
+
+  private async refreshSession(sessionId: number): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('training_sessions')
+      .select(
+        `
+        *,
+        session_attendances (
+          id,
+          athlete_id,
+          status,
+          presence,
+          athlete:athletes (first_name, last_name, category)
+        )
+      `,
+      )
+      .eq('id', sessionId)
+      .single<DbTrainingSession>();
+
+    if (error || !data) {
+      console.error('Error refrescando sesión:', error);
+      return;
     }
+
+    const session = this.mapSessionFromDb(data);
+    this.sessions.update((sessions) => sessions.map((s) => (s.id === sessionId ? session : s)));
   }
 
-  private persistTemplates(): void {
-    try {
-      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(this.templates()));
-    } catch {
-      // Almacenamiento no disponible (modo privado, cuota excedida, etc.): se ignora silenciosamente.
-    }
+  private mapTemplateFromDb(row: DbShiftTemplate): ShiftTemplate {
+    return {
+      id: row.id,
+      label: row.label,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      capacity: row.capacity,
+      weekdays: (row.weekdays ?? []) as ShiftTemplate['weekdays'],
+      playerIds: row.player_ids ?? [],
+    };
   }
 
-  /** Lee los turnos configurados; sin nada guardado no hay jornada y el calendario queda vacío. */
-  private readStoredTemplates(): ShiftTemplate[] {
-    const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as ShiftTemplate[];
-      if (!Array.isArray(parsed)) return [];
-      return parsed.map((template) => ({
-        ...template,
-        weekdays: (template.weekdays ?? []) as Weekday[],
-        capacity: template.capacity ?? null,
-        playerIds: template.playerIds ?? [],
-      }));
-    } catch {
-      return [];
-    }
+  private mapSessionFromDb(row: DbTrainingSession): TrainingSession {
+    const attendances = (row.session_attendances ?? [])
+      .filter((a): a is DbSessionAttendance & { athlete: NonNullable<DbSessionAttendance['athlete']> } => a.athlete !== null)
+      .map(
+        (a): Attendance => ({
+          id: a.id,
+          playerId: a.athlete_id,
+          playerName: `${a.athlete.first_name} ${a.athlete.last_name}`,
+          category: a.athlete.category,
+          status: a.status,
+          presence: a.presence,
+        }),
+      );
+
+    return {
+      id: row.id,
+      date: new Date(`${row.session_date}T00:00:00`),
+      shiftLabel: row.shift_label,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      capacity: row.capacity,
+      templateId: row.template_id,
+      attendances,
+    };
+  }
+
+  private sessionInsertFromTemplate(
+    template: ShiftTemplate,
+    date: Date,
+  ): Omit<DbTrainingSession, 'id' | 'session_attendances'> {
+    return {
+      session_date: date.toISOString().split('T')[0],
+      shift_label: template.label,
+      start_time: template.startTime,
+      end_time: template.endTime,
+      capacity: template.capacity,
+      template_id: template.id,
+    };
   }
 }

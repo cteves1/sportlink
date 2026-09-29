@@ -117,12 +117,12 @@ export class FreedSlotNotice {
     return this.selectedIds().includes(playerId);
   }
 
-  protected send(): void {
+  protected async send(): Promise<void> {
     const recipients = this.recipients();
     if (recipients.length === 0) return;
 
     const event = this.event();
-    this.freedSlots.markNotified(
+    await this.freedSlots.markNotified(
       event.id,
       recipients.map((athlete) => athlete.id),
     );

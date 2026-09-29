@@ -2,6 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { PlayersService } from '../../core/players/players.service';
+import { CalendarService } from '../../features/calendario/calendar.service';
 
 @Component({
   selector: 'app-login',
@@ -13,6 +15,8 @@ import { AuthService } from '../../core/auth/auth.service';
 export class Login {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
+  private readonly playersService = inject(PlayersService);
+  private readonly calendarService = inject(CalendarService);
   private readonly router = inject(Router);
 
   protected readonly errorMessage = signal<string | null>(null);
@@ -37,6 +41,7 @@ export class Login {
     }
 
     this.errorMessage.set(null);
+    await Promise.all([this.playersService.loadAthletes(), this.calendarService.loadTemplates()]);
     void this.router.navigate(['/home']);
   }
 }

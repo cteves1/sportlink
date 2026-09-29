@@ -135,12 +135,16 @@ export class Calendario implements OnInit {
     effect(() => {
       const { from, to } = this.visibleRange();
       this.calendarService.templates();
-      untracked(() => this.calendarService.ensureSessionsForRange(from, to));
+      untracked(() => {
+        void this.calendarService.ensureSessionsForRange(from, to);
+      });
     });
   }
 
   /** La acción rápida "Registrar Asistencia" del Home entra con ?asistencia=hoy. */
   ngOnInit(): void {
+    this.freedSlotsService.subscribeToChanges();
+    void this.freedSlotsService.loadEvents();
     if (this.route.snapshot.queryParamMap.get('asistencia') === 'hoy') {
       this.openTodayAttendance();
     }
@@ -332,8 +336,8 @@ export class Calendario implements OnInit {
     return this.myAttendance(session)?.status !== 'confirmado';
   }
 
-  protected bookSlot(session: TrainingSession): void {
-    this.calendarService.bookAttendance(session.id, this.currentPlayer());
+  protected async bookSlot(session: TrainingSession): Promise<void> {
+    await this.calendarService.bookAttendance(session.id, this.currentPlayer());
   }
 
   // ------------------------------------------------------------------
@@ -371,11 +375,11 @@ export class Calendario implements OnInit {
   }
 
   /** Marca (o desmarca, si se repite el clic) la presencia real de un jugador en el turno abierto. */
-  protected setPresence(attendance: Attendance, presence: Exclude<Presence, null>): void {
+  protected async setPresence(attendance: Attendance, presence: Exclude<Presence, null>): Promise<void> {
     const sessionId = this.attendanceSessionId();
     if (sessionId === null) return;
     const next = attendance.presence === presence ? null : presence;
-    this.calendarService.setPresence(sessionId, attendance.id, next);
+    await this.calendarService.setPresence(sessionId, attendance.id, next);
   }
 
   protected presentCount(session: TrainingSession): number {
@@ -497,14 +501,14 @@ export class Calendario implements OnInit {
    * Desde una cuenta de jugador no se abre el modal (no le corresponde ver a los demás
    * jugadores): el cupo queda pendiente en la bandeja del entrenador.
    */
-  protected confirmCancel(sessionId: number, attendanceId: number): void {
-    const freedSlot = this.calendarService.cancelAttendance(sessionId, attendanceId);
+  protected async confirmCancel(sessionId: number, attendanceId: number): Promise<void> {
+    const freedSlot = await this.calendarService.cancelAttendance(sessionId, attendanceId);
     this.confirmingKey.set(null);
     if (freedSlot && !this.isPlayerAccount()) this.noticeEventId.set(freedSlot.id);
   }
 
-  protected undoCancel(sessionId: number, attendanceId: number): void {
-    this.calendarService.restoreAttendance(sessionId, attendanceId);
+  protected async undoCancel(sessionId: number, attendanceId: number): Promise<void> {
+    await this.calendarService.restoreAttendance(sessionId, attendanceId);
   }
 
   protected isConfirming(sessionId: number, attendanceId: number): boolean {
@@ -564,8 +568,8 @@ export class Calendario implements OnInit {
     this.lastNotifiedCount.set(null);
   }
 
-  protected dismissFreedSlot(eventId: number): void {
-    this.freedSlotsService.dismiss(eventId);
+  protected async dismissFreedSlot(eventId: number): Promise<void> {
+    await this.freedSlotsService.dismiss(eventId);
   }
 
   // ------------------------------------------------------------------
@@ -591,8 +595,8 @@ export class Calendario implements OnInit {
       .filter((athlete) => athlete.status === 'activo' && !confirmed.has(athlete.id));
   }
 
-  protected addPlayerToSession(sessionId: number, athlete: Athlete): void {
-    this.calendarService.addAthleteToSession(sessionId, athlete);
+  protected async addPlayerToSession(sessionId: number, athlete: Athlete): Promise<void> {
+    await this.calendarService.addAthleteToSession(sessionId, athlete);
     this.addPlayerSessionId.set(null);
   }
 
@@ -619,7 +623,7 @@ export class Calendario implements OnInit {
   }
 
   /** Crea el turno suelto en el día abierto en el panel y lo deja seleccionado. */
-  protected createSession(): void {
+  protected async createSession(): Promise<void> {
     const date = this.selectedDate();
     if (!date) return;
 
@@ -633,7 +637,7 @@ export class Calendario implements OnInit {
       return;
     }
 
-    const created = this.calendarService.addSessionOn(date, {
+    const created = await this.calendarService.addSessionOn(date, {
       label,
       startTime: this.newSessionStart(),
       endTime: this.newSessionEnd(),
@@ -667,8 +671,8 @@ export class Calendario implements OnInit {
     this.confirmingSessionDeleteId.set(null);
   }
 
-  protected confirmSessionDelete(sessionId: number): void {
-    this.calendarService.removeSession(sessionId);
+  protected async confirmSessionDelete(sessionId: number): Promise<void> {
+    await this.calendarService.removeSession(sessionId);
     this.confirmingSessionDeleteId.set(null);
     if (this.selectedSessionId() === sessionId) this.selectedSessionId.set(null);
   }

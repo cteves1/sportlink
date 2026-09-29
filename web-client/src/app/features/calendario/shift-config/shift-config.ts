@@ -149,7 +149,7 @@ export class ShiftConfig {
     this.selectedPlayerIds.set(this.selectedPlayerIds().length === all.length ? [] : all);
   }
 
-  protected submit(): void {
+  protected async submit(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -180,9 +180,9 @@ export class ShiftConfig {
 
     const editingId = this.editingId();
     if (editingId !== null) {
-      this.calendarService.updateTemplate(editingId, input);
+      await this.calendarService.updateTemplate(editingId, input);
     } else {
-      this.calendarService.addTemplate(input);
+      await this.calendarService.addTemplate(input);
     }
 
     this.formOpen.set(false);
@@ -197,8 +197,8 @@ export class ShiftConfig {
     this.confirmingDeleteId.set(null);
   }
 
-  protected confirmDelete(templateId: number): void {
-    this.calendarService.deleteTemplate(templateId);
+  protected async confirmDelete(templateId: number): Promise<void> {
+    await this.calendarService.deleteTemplate(templateId);
     this.confirmingDeleteId.set(null);
     if (this.editingId() === templateId) this.formOpen.set(false);
   }
