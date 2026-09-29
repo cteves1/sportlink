@@ -47,6 +47,18 @@ begin
 end $$;
 
 -- ------------------------------------------------------------------
+-- Limpieza previa: permite reejecutar la migración inicial en desarrollo
+-- ------------------------------------------------------------------
+
+drop table if exists public.freed_slots cascade;
+drop table if exists public.session_attendances cascade;
+drop table if exists public.training_sessions cascade;
+drop table if exists public.shift_templates cascade;
+drop table if exists public.welcome_form_answers cascade;
+drop table if exists public.athletes cascade;
+drop table if exists public.profiles cascade;
+
+-- ------------------------------------------------------------------
 -- Perfiles: extienden auth.users con el rol del negocio
 -- ------------------------------------------------------------------
 
@@ -157,7 +169,7 @@ create table public.shift_templates (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint valid_weekdays check (
-    weekdays <@ array[1, 2, 3, 4, 5, 6, 7]
+    weekdays <@ array[1, 2, 3, 4, 5, 6, 7]::smallint[]
   )
 );
 
