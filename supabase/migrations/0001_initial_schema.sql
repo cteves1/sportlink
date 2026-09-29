@@ -5,18 +5,46 @@
 -- Tipos enumerados
 -- ------------------------------------------------------------------
 
-create type public.user_role as enum ('entrenador', 'admin', 'jugador');
-create type public.player_level as enum ('principiante', 'intermedio', 'avanzado');
-create type public.paddle_grip as enum ('clasica', 'lapicero');
-create type public.rubber_type as enum ('liso', 'pupo-corto', 'pupo-largo', 'antitopspin');
-create type public.playing_style as enum ('ofensivo', 'defensivo', 'all-round', 'bloqueador');
-create type public.athlete_status as enum ('activo', 'inactivo');
-create type public.player_type as enum ('regular', 'invitado');
-create type public.dominant_hand as enum ('derecha', 'izquierda');
-create type public.attendance_status as enum ('confirmado', 'ausente');
-create type public.presence_status as enum ('presente', 'ausente');
-create type public.years_playing as enum ('menos-de-1', '1-a-3', '3-a-5', 'mas-de-5');
-create type public.main_goal as enum ('competir', 'mejorar-tecnica', 'socializar', 'mantenerse-en-forma', 'otro');
+-- Los tipos se crean solo si no existen, para poder reejecutar la migración sin errores.
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'user_role') then
+    create type public.user_role as enum ('entrenador', 'admin', 'jugador');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'player_level') then
+    create type public.player_level as enum ('principiante', 'intermedio', 'avanzado');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'paddle_grip') then
+    create type public.paddle_grip as enum ('clasica', 'lapicero');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'rubber_type') then
+    create type public.rubber_type as enum ('liso', 'pupo-corto', 'pupo-largo', 'antitopspin');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'playing_style') then
+    create type public.playing_style as enum ('ofensivo', 'defensivo', 'all-round', 'bloqueador');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'athlete_status') then
+    create type public.athlete_status as enum ('activo', 'inactivo');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'player_type') then
+    create type public.player_type as enum ('regular', 'invitado');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'dominant_hand') then
+    create type public.dominant_hand as enum ('derecha', 'izquierda');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'attendance_status') then
+    create type public.attendance_status as enum ('confirmado', 'ausente');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'presence_status') then
+    create type public.presence_status as enum ('presente', 'ausente');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'years_playing') then
+    create type public.years_playing as enum ('menos-de-1', '1-a-3', '3-a-5', 'mas-de-5');
+  end if;
+  if not exists (select 1 from pg_type where typname = 'main_goal') then
+    create type public.main_goal as enum ('competir', 'mejorar-tecnica', 'socializar', 'mantenerse-en-forma', 'otro');
+  end if;
+end $$;
 
 -- ------------------------------------------------------------------
 -- Perfiles: extienden auth.users con el rol del negocio
