@@ -73,6 +73,7 @@ export class PlayerFormModal {
   protected readonly dayControlName = dayControlName;
 
   protected readonly lastCreated = signal<Athlete | null>(null);
+  protected readonly saveError = signal<string | null>(null);
   protected readonly isEditing = computed(() => this.athlete() !== null);
 
   protected readonly form = this.fb.nonNullable.group({
@@ -147,6 +148,7 @@ export class PlayerFormModal {
 
   protected close(): void {
     this.lastCreated.set(null);
+    this.saveError.set(null);
     this.form.reset(EMPTY_FORM);
     this.closed.emit();
   }
@@ -165,6 +167,7 @@ export class PlayerFormModal {
       return;
     }
 
+    this.saveError.set(null);
     const value = this.form.getRawValue();
     const payload = {
       firstName: value.firstName,
@@ -186,19 +189,30 @@ export class PlayerFormModal {
     };
 
     const editing = this.athlete();
-    if (editing !== null) {
-      await this.playersService.updateAthlete(editing.id, payload);
-      this.close();
-      return;
-    }
+    try {
+      if (editing !== null) {
+        const updated = await this.playersService.updateAthlete(editing.id, payload);
+        if (updated) {
+          this.saved.emit(updated);
+        } else {
+          this.saveError.set('No se pudieron guardar los cambios. Reintentá.');
+          return;
+        }
+        this.close();
+        return;
+      }
 
-    const newAthlete = await this.playersService.addAthlete(payload);
-    if (!newAthlete) {
-      return;
+      const newAthlete = await this.playersService.addAthlete(payload);
+      if (!newAthlete) {
+        this.saveError.set('No se pudo registrar al jugador. Reintentá.');
+        return;
+      }
+      this.lastCreated.set(newAthlete);
+      this.saved.emit(newAthlete);
+      this.form.reset(EMPTY_FORM);
+    } catch (err: any) {
+      this.saveError.set(err?.message ?? 'Ocurrió un error inesperado. Reintentá.');
     }
-    this.lastCreated.set(newAthlete);
-    this.saved.emit(newAthlete);
-    this.form.reset(EMPTY_FORM);
   }
 
   protected sendWhatsapp(athlete: Athlete): void {

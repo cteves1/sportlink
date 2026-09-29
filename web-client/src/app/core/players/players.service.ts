@@ -1,4 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { dateKey } from '../date/calendar-dates';
 import { SupabaseService } from '../supabase/supabase.service';
 
 /**
@@ -376,7 +377,7 @@ export class PlayersService {
       .insert({
         first_name: input.firstName,
         last_name: input.lastName,
-        birth_date: input.birthDate.toISOString().split('T')[0],
+        birth_date: dateKey(input.birthDate),
         phone: input.phone,
         category: input.category,
         player_type: input.playerType,
@@ -408,7 +409,7 @@ export class PlayersService {
       .update({
         first_name: input.firstName,
         last_name: input.lastName,
-        birth_date: input.birthDate.toISOString().split('T')[0],
+        birth_date: dateKey(input.birthDate),
         phone: input.phone,
         category: input.category,
         player_type: input.playerType,

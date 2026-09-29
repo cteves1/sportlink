@@ -336,6 +336,10 @@
           </div>
         </div>
 
+        @if (saveError()) {
+          <p class="rounded-md bg-red-50 p-2 text-xs text-red-700">{{ saveError() }}</p>
+        }
+
         <div class="mt-2 flex gap-3">
           <button
             type="button"
