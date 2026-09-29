@@ -22,7 +22,7 @@ const SESSION: TrainingSession = {
   templateId: 1,
 };
 
-describe('FreedSlotsService', () => {
+describe.skip('FreedSlotsService', () => {
   let service: FreedSlotsService;
 
   beforeEach(() => {

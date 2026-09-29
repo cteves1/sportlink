@@ -73,7 +73,8 @@ export interface OneOffSessionInput {
 
 @Injectable({ providedIn: 'root' })
 export class CalendarService {
-  private readonly supabase = inject(SupabaseService).client;
+  private readonly supabaseService = inject(SupabaseService);
+  private readonly supabase = this.supabaseService.client;
   private readonly playersService = inject(PlayersService);
   private readonly freedSlots = inject(FreedSlotsService);
 
@@ -156,7 +157,7 @@ export class CalendarService {
   // ------------------------------------------------------------------
 
   async addTemplate(input: ShiftTemplateInput): Promise<ShiftTemplate | null> {
-    const user = (await this.supabase.auth.getUser()).data.user;
+    const userId = this.supabaseService.user()?.id;
     const { data, error } = await this.supabase
       .from('shift_templates')
       .insert({
@@ -166,7 +167,7 @@ export class CalendarService {
         capacity: input.capacity,
         weekdays: [...input.weekdays].sort((a, b) => a - b),
         player_ids: input.playerIds,
-        created_by: user?.id,
+        created_by: userId,
       })
       .select('*')
       .single<DbShiftTemplate>();
