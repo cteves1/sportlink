@@ -159,7 +159,7 @@ export class PlayerFormModal {
     }
   }
 
-  protected submitPlayer(): void {
+  protected async submitPlayer(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -187,12 +187,15 @@ export class PlayerFormModal {
 
     const editing = this.athlete();
     if (editing !== null) {
-      this.playersService.updateAthlete(editing.id, payload);
+      await this.playersService.updateAthlete(editing.id, payload);
       this.close();
       return;
     }
 
-    const newAthlete = this.playersService.addAthlete(payload);
+    const newAthlete = await this.playersService.addAthlete(payload);
+    if (!newAthlete) {
+      return;
+    }
     this.lastCreated.set(newAthlete);
     this.saved.emit(newAthlete);
     this.form.reset(EMPTY_FORM);

@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { SupabaseService } from '../supabase/supabase.service';
 
 /**
  * Nivel de juego. Se ordena de más fuerte a más novato:
@@ -194,6 +195,49 @@ export type NewAthleteInput = Pick<
   | 'trainingDays'
 >;
 
+interface DbWelcomeForm {
+  main_goal: WelcomeFormAnswers['mainGoal'];
+  short_term_goal: string;
+  long_term_goal: string;
+  motivation: string;
+  coach_support: string;
+  years_playing: WelcomeFormAnswers['yearsPlaying'];
+  has_competed: boolean;
+  self_perceived_level: PlayerLevel;
+  paddle_grip: PaddleGrip | null;
+  rubber_forehand: RubberType | null;
+  rubber_backhand: RubberType | null;
+  playing_style: PlayingStyle | null;
+  club: string | null;
+  specific_goal: string | null;
+  training_days: Weekday[];
+}
+
+interface DbAthlete {
+  id: number;
+  first_name: string;
+  last_name: string;
+  category: Category;
+  status: Athlete['status'];
+  player_type: Athlete['playerType'];
+  phone: string;
+  username: string;
+  temp_password: string;
+  attendance_rate: number;
+  birth_date: string;
+  dominant_hand: Athlete['dominantHand'];
+  level: PlayerLevel;
+  paddle_grip: PaddleGrip | null;
+  rubber_forehand: RubberType | null;
+  rubber_backhand: RubberType | null;
+  playing_style: PlayingStyle | null;
+  club: string | null;
+  specific_goal: string | null;
+  training_days: Weekday[];
+  welcome_form_completed: boolean;
+  welcome_form_answers: DbWelcomeForm[] | null;
+}
+
 /** Normaliza un texto quitando tildes/espacios y pasándolo a minúsculas, para armar usernames. */
 function normalize(text: string): string {
   return text
@@ -202,20 +246,6 @@ function normalize(text: string): string {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '');
-}
-
-const STORAGE_KEY = 'tt-trainer-players';
-
-function reserveUsername(firstName: string, lastName: string, used: Set<string>): string {
-  const base = `${normalize(firstName)}.${normalize(lastName)}`;
-  let candidate = base;
-  let suffix = 1;
-  while (used.has(candidate)) {
-    candidate = `${base}${suffix}`;
-    suffix++;
-  }
-  used.add(candidate);
-  return candidate;
 }
 
 function randomAlnum(length: number): string {
@@ -227,184 +257,199 @@ function randomAlnum(length: number): string {
   return result;
 }
 
-const DEMO_PLAYING_STYLES: readonly PlayingStyle[] = [
-  'ofensivo',
-  'all-round',
-  'defensivo',
-  'bloqueador',
-];
+function fromDbRow(row: DbAthlete): Athlete {
+  const welcomeAnswers = Array.isArray(row.welcome_form_answers)
+    ? row.welcome_form_answers[0]
+    : row.welcome_form_answers;
 
-/** Respuestas de bienvenida de demo, para los jugadores que ya la completaron. */
-function demoWelcomeForm(athlete: Athlete): WelcomeFormAnswers {
   return {
-    mainGoal: 'competir',
-    shortTermGoal: 'Ganar consistencia en el saque y la devolución.',
-    longTermGoal: 'Subir de categoría en la próxima temporada.',
-    motivation: 'Competir en el circuito con el club.',
-    coachSupport: 'Corrección técnica y planificación semanal.',
-    yearsPlaying: '3-a-5',
-    hasCompeted: true,
-    selfPerceivedLevel: athlete.level,
-    paddleGrip: athlete.paddleGrip,
-    rubberForehand: athlete.rubberForehand,
-    rubberBackhand: athlete.rubberBackhand,
-    playingStyle: athlete.playingStyle,
-    club: athlete.club,
-    specificGoal: athlete.specificGoal,
-    trainingDays: athlete.trainingDays,
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    category: row.category,
+    status: row.status,
+    playerType: row.player_type,
+    phone: row.phone,
+    username: row.username,
+    tempPassword: row.temp_password,
+    attendance: Number(row.attendance_rate),
+    birthDate: new Date(row.birth_date),
+    dominantHand: row.dominant_hand,
+    level: row.level,
+    paddleGrip: row.paddle_grip,
+    rubberForehand: row.rubber_forehand,
+    rubberBackhand: row.rubber_backhand,
+    playingStyle: row.playing_style,
+    club: row.club,
+    specificGoal: row.specific_goal,
+    trainingDays: row.training_days,
+    welcomeFormCompleted: row.welcome_form_completed,
+    welcomeForm: welcomeAnswers ? fromDbWelcomeForm(welcomeAnswers) : null,
   };
 }
 
-/**
- * Ficha de demo. Los datos técnicos se recortan al nivel declarado igual que en un alta
- * real (un principiante no tiene paleta, gomas ni estilo definidos).
- */
-function demoAthlete(
-  id: number,
-  firstName: string,
-  lastName: string,
-  category: Category,
-  level: PlayerLevel,
-  trainingDays: Weekday[],
-): Athlete {
-  const advanced = level === 'avanzado';
-  const intermediateOrAbove = advanced || level === 'intermedio';
-
+function fromDbWelcomeForm(row: DbWelcomeForm): WelcomeFormAnswers {
   return {
-    id,
-    firstName,
-    lastName,
-    category,
-    status: 'activo',
-    playerType: 'regular',
-    phone: `+54 9 11 4000-${String(1000 + id).padStart(4, '0')}`,
-    username: `${normalize(firstName)}.${normalize(lastName)}`,
-    tempPassword: `TM-2026-DM${String(id).padStart(2, '0')}`,
-    attendance: 65 + ((id * 7) % 35),
-    birthDate: new Date(1998 + (id % 12), (id * 5) % 12, 1 + (id % 27)),
-    dominantHand: id % 4 === 0 ? 'izquierda' : 'derecha',
-    level,
-    paddleGrip: intermediateOrAbove ? (id % 3 === 0 ? 'lapicero' : 'clasica') : null,
-    rubberForehand: intermediateOrAbove ? 'liso' : null,
-    rubberBackhand: intermediateOrAbove ? (id % 2 === 0 ? 'pupo-corto' : 'liso') : null,
-    playingStyle: intermediateOrAbove ? DEMO_PLAYING_STYLES[id % DEMO_PLAYING_STYLES.length] : null,
-    club: advanced ? 'Club Atlético Norte' : null,
-    specificGoal: advanced ? 'Clasificar al Provincial 2026' : null,
-    trainingDays,
-    welcomeFormCompleted: false,
-    welcomeForm: null,
+    mainGoal: row.main_goal,
+    shortTermGoal: row.short_term_goal,
+    longTermGoal: row.long_term_goal,
+    motivation: row.motivation,
+    coachSupport: row.coach_support,
+    yearsPlaying: row.years_playing,
+    hasCompeted: row.has_competed,
+    selfPerceivedLevel: row.self_perceived_level,
+    paddleGrip: row.paddle_grip,
+    rubberForehand: row.rubber_forehand,
+    rubberBackhand: row.rubber_backhand,
+    playingStyle: row.playing_style,
+    club: row.club,
+    specificGoal: row.specific_goal,
+    trainingDays: row.training_days,
   };
 }
 
-/**
- * Plantel de demo con categorías variadas (de Atleta Elite a Infantil). Se siembra solo
- * cuando no hay nada guardado, para poder probar los turnos y los avisos de cupo liberado
- * sin dar de alta a nadie a mano. Los ids y nombres coinciden con los jugadores mock del
- * calendario, así las asistencias sembradas allí apuntan a estas mismas fichas.
- */
-function buildDemoAthletes(): Athlete[] {
-  const athletes = [
-    demoAthlete(1, 'Matías', 'Fernández', 1, 'avanzado', [1, 2, 3, 4, 5]),
-    demoAthlete(2, 'Sofía', 'Rojas', 2, 'avanzado', [1, 3, 5]),
-    demoAthlete(3, 'Diego', 'Vargas', 3, 'intermedio', [2, 4]),
-    demoAthlete(4, 'Camila', 'Torres', 3, 'intermedio', [1, 3, 5]),
-    demoAthlete(5, 'Ignacio', 'Soto', 4, 'intermedio', [2, 4, 6]),
-    demoAthlete(6, 'Valentina', 'Muñoz', 4, 'intermedio', [1, 4]),
-    demoAthlete(7, 'Benjamín', 'Castro', 5, 'principiante', [3, 5]),
-    demoAthlete(8, 'Antonia', 'Reyes', 6, 'principiante', [2, 6]),
-    demoAthlete(9, 'Tomás', 'Aguirre', 0, 'avanzado', [1, 2, 3, 4, 5, 6]),
-    demoAthlete(10, 'Martina', 'Paz', 9, 'principiante', [6]),
-  ];
+function toDbWelcomeForm(answers: WelcomeFormAnswers): DbWelcomeForm {
+  return {
+    main_goal: answers.mainGoal,
+    short_term_goal: answers.shortTermGoal,
+    long_term_goal: answers.longTermGoal,
+    motivation: answers.motivation,
+    coach_support: answers.coachSupport,
+    years_playing: answers.yearsPlaying,
+    has_competed: answers.hasCompeted,
+    self_perceived_level: answers.selfPerceivedLevel,
+    paddle_grip: answers.paddleGrip,
+    rubber_forehand: answers.rubberForehand,
+    rubber_backhand: answers.rubberBackhand,
+    playing_style: answers.playingStyle,
+    club: answers.club,
+    specific_goal: answers.specificGoal,
+    training_days: answers.trainingDays,
+  };
+}
 
-  // Los tres de mayor nivel ya completaron el formulario de bienvenida; el resto queda pendiente.
-  return athletes.map((athlete) =>
-    [1, 2, 9].includes(athlete.id)
-      ? { ...athlete, welcomeFormCompleted: true, welcomeForm: demoWelcomeForm(athlete) }
-      : athlete,
-  );
+function profileOf(input: NewAthleteInput): Pick<DbAthlete, 'level' | 'paddle_grip' | 'rubber_forehand' | 'rubber_backhand' | 'playing_style' | 'club' | 'specific_goal' | 'training_days'> {
+  const isIntermediateOrAbove = input.level === 'intermedio' || input.level === 'avanzado';
+  const isAdvanced = input.level === 'avanzado';
+  return {
+    level: input.level,
+    paddle_grip: isIntermediateOrAbove ? input.paddleGrip : null,
+    rubber_forehand: isIntermediateOrAbove ? input.rubberForehand : null,
+    rubber_backhand: isIntermediateOrAbove ? input.rubberBackhand : null,
+    playing_style: isIntermediateOrAbove ? input.playingStyle : null,
+    club: isAdvanced ? input.club : null,
+    specific_goal: isAdvanced ? input.specificGoal : null,
+    training_days: [...input.trainingDays].sort((a, b) => a - b),
+  };
 }
 
 @Injectable({ providedIn: 'root' })
 export class PlayersService {
-  private readonly _athletes = signal<Athlete[]>(this.readStored());
+  private readonly supabase = inject(SupabaseService).client;
+  private readonly _athletes = signal<Athlete[]>([]);
   readonly athletes = this._athletes.asReadonly();
 
-  private readonly usedUsernames = new Set(this._athletes().map((a) => a.username));
+  /** Carga todos los atletas visibles para el usuario autenticado. */
+  async loadAthletes(): Promise<void> {
+    const { data, error } = await this.supabase
+      .from('athletes')
+      .select('*, welcome_form_answers(*)')
+      .order('last_name', { ascending: true })
+      .returns<DbAthlete[]>();
+
+    if (error) {
+      console.error('Error cargando atletas:', error);
+      return;
+    }
+
+    this._athletes.set((data ?? []).map((row) => fromDbRow(row as DbAthlete)));
+  }
 
   /** Crea un nuevo jugador generando automáticamente su usuario y clave temporal. */
-  addAthlete(input: NewAthleteInput): Athlete {
-    const newAthlete: Athlete = {
-      id: Math.max(0, ...this._athletes().map((a) => a.id)) + 1,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      category: input.category,
-      status: 'activo',
-      playerType: input.playerType,
-      phone: input.phone,
-      username: reserveUsername(input.firstName, input.lastName, this.usedUsernames),
-      tempPassword: `TM-2026-${randomAlnum(4)}`,
-      attendance: 0,
-      birthDate: input.birthDate,
-      dominantHand: input.dominantHand,
-      ...this.profileOf(input),
-      welcomeFormCompleted: false,
-      welcomeForm: null,
-    };
+  async addAthlete(input: NewAthleteInput): Promise<Athlete | null> {
+    const usedUsernames = new Set(this._athletes().map((a) => a.username));
+    const username = this.reserveUsername(input.firstName, input.lastName, usedUsernames);
+    const tempPassword = `TM-${new Date().getFullYear()}-${randomAlnum(4)}`;
 
-    this._athletes.update((list) => [...list, newAthlete]);
-    this.persist();
-    return newAthlete;
+    const { data, error } = await this.supabase
+      .from('athletes')
+      .insert({
+        first_name: input.firstName,
+        last_name: input.lastName,
+        birth_date: input.birthDate.toISOString().split('T')[0],
+        phone: input.phone,
+        category: input.category,
+        player_type: input.playerType,
+        dominant_hand: input.dominantHand,
+        username,
+        temp_password: tempPassword,
+        status: 'activo',
+        attendance_rate: 0,
+        welcome_form_completed: false,
+        ...profileOf(input),
+      })
+      .select('*, welcome_form_answers(*)')
+      .single<DbAthlete>();
+
+    if (error || !data) {
+      console.error('Error creando atleta:', error);
+      return null;
+    }
+
+    const athlete = fromDbRow(data as DbAthlete);
+    this._athletes.update((list) => [...list, athlete].sort((a, b) => a.lastName.localeCompare(b.lastName)));
+    return athlete;
   }
 
   /** Actualiza los datos editables de un jugador existente (no toca usuario/clave/estado/asistencia). */
-  updateAthlete(athleteId: number, input: NewAthleteInput): void {
+  async updateAthlete(athleteId: number, input: NewAthleteInput): Promise<Athlete | null> {
+    const { data, error } = await this.supabase
+      .from('athletes')
+      .update({
+        first_name: input.firstName,
+        last_name: input.lastName,
+        birth_date: input.birthDate.toISOString().split('T')[0],
+        phone: input.phone,
+        category: input.category,
+        player_type: input.playerType,
+        dominant_hand: input.dominantHand,
+        ...profileOf(input),
+      })
+      .eq('id', athleteId)
+      .select('*, welcome_form_answers(*)')
+      .single<DbAthlete>();
+
+    if (error || !data) {
+      console.error('Error actualizando atleta:', error);
+      return null;
+    }
+
+    const updated = fromDbRow(data as DbAthlete);
     this._athletes.update((list) =>
-      list.map((athlete) =>
-        athlete.id === athleteId
-          ? {
-              ...athlete,
-              firstName: input.firstName,
-              lastName: input.lastName,
-              category: input.category,
-              phone: input.phone,
-              playerType: input.playerType,
-              birthDate: input.birthDate,
-              dominantHand: input.dominantHand,
-              ...this.profileOf(input),
-            }
-          : athlete,
-      ),
+      list.map((a) => (a.id === athleteId ? updated : a)).sort((a, b) => a.lastName.localeCompare(b.lastName)),
     );
-    this.persist();
+    return updated;
   }
 
   /**
-   * Guarda las respuestas del formulario de bienvenida, lo marca como completado y
-   * sincroniza el perfil técnico declarado por el jugador en su propia ficha.
+   * Guarda las respuestas del formulario de bienvenida. El trigger de base de datos
+   * actualiza `athletes.welcome_form_completed` y el perfil técnico declarado.
    */
-  submitWelcomeForm(athleteId: number, answers: WelcomeFormAnswers): void {
-    this._athletes.update((list) =>
-      list.map((athlete) =>
-        athlete.id === athleteId
-          ? {
-              ...athlete,
-              welcomeForm: answers,
-              welcomeFormCompleted: true,
-              level: answers.selfPerceivedLevel,
-              paddleGrip: answers.paddleGrip,
-              rubberForehand: answers.rubberForehand,
-              rubberBackhand: answers.rubberBackhand,
-              playingStyle: answers.playingStyle,
-              club: answers.club,
-              specificGoal: answers.specificGoal,
-              // El entrenador es quien acuerda los días: solo se toman los del jugador si aún no hay ninguno.
-              trainingDays:
-                athlete.trainingDays.length > 0 ? athlete.trainingDays : answers.trainingDays,
-            }
-          : athlete,
-      ),
+  async submitWelcomeForm(athleteId: number, answers: WelcomeFormAnswers): Promise<void> {
+    const { error } = await this.supabase.from('welcome_form_answers').upsert(
+      {
+        athlete_id: athleteId,
+        ...toDbWelcomeForm(answers),
+      },
+      { onConflict: 'athlete_id' },
     );
-    this.persist();
+
+    if (error) {
+      console.error('Error guardando formulario de bienvenida:', error);
+      return;
+    }
+
+    await this.loadAthletes();
   }
 
   /** True si el jugador existe y todavía no completó el formulario de bienvenida. */
@@ -414,75 +459,49 @@ export class PlayersService {
   }
 
   /** Alterna el estado activo/inactivo de un jugador (no se elimina de la base de datos). */
-  toggleStatus(athleteId: number): void {
+  async toggleStatus(athleteId: number): Promise<void> {
+    const athlete = this._athletes().find((a) => a.id === athleteId);
+    if (!athlete) return;
+
+    const nextStatus = athlete.status === 'activo' ? 'inactivo' : 'activo';
+    const { error } = await this.supabase.from('athletes').update({ status: nextStatus }).eq('id', athleteId);
+
+    if (error) {
+      console.error('Error cambiando estado del atleta:', error);
+      return;
+    }
+
     this._athletes.update((list) =>
-      list.map((athlete) =>
-        athlete.id === athleteId
-          ? { ...athlete, status: athlete.status === 'activo' ? 'inactivo' : 'activo' }
-          : athlete,
-      ),
+      list.map((a) => (a.id === athleteId ? { ...a, status: nextStatus } : a)),
     );
-    this.persist();
   }
 
-  findByUsername(username: string): Athlete | undefined {
-    return this._athletes().find((athlete) => athlete.username === username);
-  }
+  async findByUsername(username: string): Promise<Athlete | undefined> {
+    const local = this._athletes().find((a) => a.username === username);
+    if (local) return local;
 
-  /** Recorta el perfil técnico al nivel declarado: lo que no aplica se guarda como `null`. */
-  private profileOf(input: NewAthleteInput): PlayingProfile {
-    const isIntermediateOrAbove = input.level === 'intermedio' || input.level === 'avanzado';
-    const isAdvanced = input.level === 'avanzado';
-    return {
-      level: input.level,
-      paddleGrip: isIntermediateOrAbove ? input.paddleGrip : null,
-      rubberForehand: isIntermediateOrAbove ? input.rubberForehand : null,
-      rubberBackhand: isIntermediateOrAbove ? input.rubberBackhand : null,
-      playingStyle: isIntermediateOrAbove ? input.playingStyle : null,
-      club: isAdvanced ? input.club : null,
-      specificGoal: isAdvanced ? input.specificGoal : null,
-      trainingDays: [...input.trainingDays].sort((a, b) => a - b),
-    };
-  }
+    const { data, error } = await this.supabase
+      .from('athletes')
+      .select('*, welcome_form_answers(*)')
+      .eq('username', username)
+      .maybeSingle<DbAthlete>();
 
-  /** Persiste la lista completa de jugadores en localStorage para que sobreviva a recargas. */
-  private persist(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this._athletes()));
-    } catch {
-      // Almacenamiento no disponible (modo privado, cuota excedida, etc.): se ignora silenciosamente.
+    if (error || !data) {
+      return undefined;
     }
+
+    return fromDbRow(data as DbAthlete);
   }
 
-  /** Lee la lista de jugadores guardada; si no hay nada o está corrupta, usa el plantel de demo. */
-  private readStored(): Athlete[] {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return buildDemoAthletes();
-    try {
-      const parsed = JSON.parse(raw) as Athlete[];
-      if (!Array.isArray(parsed)) return buildDemoAthletes();
-      return parsed.map((athlete) => this.hydrate(athlete));
-    } catch {
-      return [];
+  private reserveUsername(firstName: string, lastName: string, used: Set<string>): string {
+    const base = `${normalize(firstName)}.${normalize(lastName)}`;
+    let candidate = base;
+    let suffix = 1;
+    while (used.has(candidate)) {
+      candidate = `${base}${suffix}`;
+      suffix++;
     }
-  }
-
-  /**
-   * Normaliza un registro guardado antes de que el perfil de juego existiera: rellena los
-   * campos nuevos con valores por defecto para que las plantillas nunca reciban `undefined`.
-   */
-  private hydrate(stored: Athlete): Athlete {
-    return {
-      ...stored,
-      birthDate: new Date(stored.birthDate),
-      level: stored.level ?? 'intermedio',
-      paddleGrip: stored.paddleGrip ?? null,
-      rubberForehand: stored.rubberForehand ?? null,
-      rubberBackhand: stored.rubberBackhand ?? null,
-      playingStyle: stored.playingStyle ?? null,
-      club: stored.club ?? null,
-      specificGoal: stored.specificGoal ?? null,
-      trainingDays: stored.trainingDays ?? [],
-    };
+    used.add(candidate);
+    return candidate;
   }
 }

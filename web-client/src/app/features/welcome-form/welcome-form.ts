@@ -156,7 +156,7 @@ export class WelcomeForm {
     }
   }
 
-  protected submitForm(): void {
+  protected async submitForm(): Promise<void> {
     if (this.experienceForm.invalid) {
       this.experienceForm.markAllAsTouched();
       return;
@@ -186,7 +186,7 @@ export class WelcomeForm {
       trainingDays: isAdvanced ? this.selectedTrainingDays(experience.trainingDays) : [],
     };
 
-    this.playersService.submitWelcomeForm(user.athleteId, answers);
+    await this.playersService.submitWelcomeForm(user.athleteId, answers);
     void this.router.navigate(['/home']);
   }
 

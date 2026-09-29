@@ -110,8 +110,8 @@ export class Jugadores {
     this.expandedId.update((current) => (current === athleteId ? null : athleteId));
   }
 
-  protected toggleStatus(athleteId: number): void {
-    this.playersService.toggleStatus(athleteId);
+  protected async toggleStatus(athleteId: number): Promise<void> {
+    await this.playersService.toggleStatus(athleteId);
   }
 
   protected openForm(): void {
