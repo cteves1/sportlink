@@ -1,5 +1,12 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { LucideMessageCircle, LucideX } from '@lucide/angular';
 import {
@@ -120,6 +127,7 @@ export class PlayerFormModal {
     effect(() => {
       const athlete = this.athlete();
       this.lastCreated.set(null);
+      this.saveError.set(null);
       this.form.reset(athlete === null ? EMPTY_FORM : this.formValueOf(athlete));
     });
 
@@ -135,6 +143,25 @@ export class PlayerFormModal {
       this.setEnabled(controls.club, advanced);
       this.setEnabled(controls.specificGoal, advanced);
     });
+
+    // Valida que el celular no esté repetido, permitiendo el número del jugador que se está editando.
+    effect(() => {
+      const editingId = this.athlete()?.id ?? null;
+      const phoneControl = this.form.controls.phone;
+      phoneControl.setValidators([
+        Validators.required,
+        Validators.pattern(/^\+?[0-9\s-]{8,}$/),
+        this.duplicatePhoneValidator(editingId),
+      ]);
+      phoneControl.updateValueAndValidity({ emitEvent: false });
+    });
+
+    // Si otro cliente agrega un jugador, revalida el celular contra la lista actualizada.
+    effect(() => {
+      this.playersService.athletes();
+      const phoneControl = this.form.controls.phone;
+      phoneControl.updateValueAndValidity({ emitEvent: false });
+    });
   }
 
   /** Habilita o deshabilita un control sin disparar `valueChanges` (evita bucles con el effect). */
@@ -144,6 +171,22 @@ export class PlayerFormModal {
     } else {
       control.disable({ emitEvent: false });
     }
+  }
+
+  private duplicatePhoneValidator(editingAthleteId: number | null): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const phone = this.normalizePhone(control.value as string);
+      if (!phone) return null;
+      const duplicate = this.playersService.athletes().find(
+        (athlete) =>
+          this.normalizePhone(athlete.phone) === phone && athlete.id !== editingAthleteId,
+      );
+      return duplicate ? { duplicatePhone: true } : null;
+    };
+  }
+
+  private normalizePhone(phone: string): string {
+    return (phone ?? '').replace(/\D/g, '');
   }
 
   protected close(): void {
@@ -189,6 +232,17 @@ export class PlayerFormModal {
     };
 
     const editing = this.athlete();
+    const normalizedPhone = this.normalizePhone(value.phone);
+    const duplicate = this.playersService.athletes().find(
+      (athlete) =>
+        this.normalizePhone(athlete.phone) === normalizedPhone && athlete.id !== editing?.id,
+    );
+    if (duplicate) {
+      this.form.controls.phone.setErrors({ duplicatePhone: true });
+      this.form.controls.phone.markAsTouched();
+      return;
+    }
+
     try {
       if (editing !== null) {
         const updated = await this.playersService.updateAthlete(editing.id, payload);
