@@ -3,11 +3,14 @@ import {
   CATEGORY_OPTIONS,
   NewAthleteInput,
   PlayersService,
+  WelcomeFormAnswers,
   categoryLabel,
   isEliteCategory,
   paddleGripLabel,
   trainingDaysLabel,
 } from './players.service';
+import { SupabaseService } from '../supabase/supabase.service';
+import { fakeSupabaseService, FakeResolver } from '../supabase/supabase-testing';
 
 function newAthlete(overrides: Partial<NewAthleteInput> = {}): NewAthleteInput {
   return {
@@ -26,6 +29,39 @@ function newAthlete(overrides: Partial<NewAthleteInput> = {}): NewAthleteInput {
     club: 'Club Atlético Norte',
     specificGoal: 'Clasificar al Nacional Sub-19',
     trainingDays: [3, 1, 5],
+    ...overrides,
+  };
+}
+
+function dbAthleteFromInput(id: number, input: NewAthleteInput, overrides: Record<string, unknown> = {}) {
+  const isIntermediateOrAbove = input.level === 'intermedio' || input.level === 'avanzado';
+  const isAdvanced = input.level === 'avanzado';
+  return {
+    id,
+    user_id: null,
+    first_name: input.firstName,
+    last_name: input.lastName,
+    birth_date: input.birthDate.toISOString().split('T')[0],
+    phone: input.phone,
+    category: input.category,
+    status: 'activo',
+    player_type: input.playerType,
+    dominant_hand: input.dominantHand,
+    level: input.level,
+    paddle_grip: isIntermediateOrAbove ? input.paddleGrip : null,
+    rubber_forehand: isIntermediateOrAbove ? input.rubberForehand : null,
+    rubber_backhand: isIntermediateOrAbove ? input.rubberBackhand : null,
+    playing_style: isIntermediateOrAbove ? input.playingStyle : null,
+    club: isAdvanced ? input.club : null,
+    specific_goal: isAdvanced ? input.specificGoal : null,
+    training_days: [...input.trainingDays].sort((a, b) => a - b),
+    attendance_rate: 0,
+    username: 'ana.gomez',
+    temp_password: 'TM-2026-ABCD',
+    welcome_form_completed: false,
+    welcome_form_answers: [] as unknown[],
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
     ...overrides,
   };
 }
@@ -64,95 +100,201 @@ describe('etiquetas del perfil de juego', () => {
   });
 });
 
-describe.skip('PlayersService', () => {
+describe('PlayersService', () => {
   let service: PlayersService;
+  let resolverCalls: { table: string; operation: string; payload: unknown; filters: unknown[] }[];
 
   beforeEach(() => {
-    localStorage.clear();
-    TestBed.configureTestingModule({});
+    resolverCalls = [];
+  });
+
+  function configureService(resolver: FakeResolver) {
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: fakeSupabaseService(resolver) }],
+    });
     service = TestBed.inject(PlayersService);
+  }
+
+  it('guarda el perfil completo de un avanzado y ordena los días acordados', async () => {
+    const input = newAthlete();
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'athletes' && operation === 'insert') {
+        return { data: dbAthleteFromInput(1, input), error: null };
+      }
+      return { data: null, error: null };
+    });
+
+    const created = await service.addAthlete(input);
+
+    expect(created).not.toBeNull();
+    expect(created!.level).toBe('avanzado');
+    expect(created!.club).toBe('Club Atlético Norte');
+    expect(created!.specificGoal).toBe('Clasificar al Nacional Sub-19');
+    expect(created!.trainingDays).toEqual([1, 3, 5]);
   });
 
-  it('guarda el perfil completo de un avanzado y ordena los días acordados', () => {
-    const created = service.addAthlete(newAthlete());
+  it('descarta paleta, gomas, estilo, club y objetivo de un principiante', async () => {
+    const input = newAthlete({ level: 'principiante' });
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'athletes' && operation === 'insert') {
+        return { data: dbAthleteFromInput(1, input), error: null };
+      }
+      return { data: null, error: null };
+    });
 
-    expect(created.level).toBe('avanzado');
-    expect(created.club).toBe('Club Atlético Norte');
-    expect(created.specificGoal).toBe('Clasificar al Nacional Sub-19');
-    expect(created.trainingDays).toEqual([1, 3, 5]);
+    const created = await service.addAthlete(input);
+
+    expect(created!.paddleGrip).toBeNull();
+    expect(created!.rubberForehand).toBeNull();
+    expect(created!.rubberBackhand).toBeNull();
+    expect(created!.playingStyle).toBeNull();
+    expect(created!.club).toBeNull();
+    expect(created!.specificGoal).toBeNull();
+    expect(created!.trainingDays).toEqual([1, 3, 5]);
   });
 
-  it('descarta paleta, gomas, estilo, club y objetivo de un principiante', () => {
-    const created = service.addAthlete(newAthlete({ level: 'principiante' }));
+  it('conserva paleta, gomas y estilo de un intermedio pero no club ni objetivo', async () => {
+    const input = newAthlete({ level: 'intermedio' });
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'athletes' && operation === 'insert') {
+        return { data: dbAthleteFromInput(1, input), error: null };
+      }
+      return { data: null, error: null };
+    });
 
-    expect(created.paddleGrip).toBeNull();
-    expect(created.rubberForehand).toBeNull();
-    expect(created.rubberBackhand).toBeNull();
-    expect(created.playingStyle).toBeNull();
-    expect(created.club).toBeNull();
-    expect(created.specificGoal).toBeNull();
-    // Los días acordados con el entrenador se guardan para cualquier nivel.
-    expect(created.trainingDays).toEqual([1, 3, 5]);
+    const created = await service.addAthlete(input);
+
+    expect(created!.paddleGrip).toBe('lapicero');
+    expect(created!.playingStyle).toBe('ofensivo');
+    expect(created!.club).toBeNull();
+    expect(created!.specificGoal).toBeNull();
   });
 
-  it('conserva paleta, gomas y estilo de un intermedio pero no club ni objetivo', () => {
-    const created = service.addAthlete(newAthlete({ level: 'intermedio' }));
+  it('acepta las categorías Atleta Elite e Infantil', async () => {
+    let insertCount = 0;
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'athletes' && operation === 'insert') {
+        insertCount++;
+        const input = insertCount === 1 ? newAthlete({ category: 0 }) : newAthlete({ category: 9 });
+        return { data: dbAthleteFromInput(insertCount, input), error: null };
+      }
+      return { data: null, error: null };
+    });
 
-    expect(created.paddleGrip).toBe('lapicero');
-    expect(created.playingStyle).toBe('ofensivo');
-    expect(created.club).toBeNull();
-    expect(created.specificGoal).toBeNull();
+    const elite = await service.addAthlete(newAthlete({ category: 0 }));
+    expect(elite!.category).toBe(0);
+
+    const infantil = await service.addAthlete(newAthlete({ category: 9 }));
+    expect(infantil!.category).toBe(9);
   });
 
-  it('acepta las categorías nuevas Atleta Elite e Infantil', () => {
-    expect(service.addAthlete(newAthlete({ category: 0 })).category).toBe(0);
-    expect(service.addAthlete(newAthlete({ category: 9 })).category).toBe(9);
-  });
+  it('al editar refleja el cambio en el signal de atletas', async () => {
+    const createdInput = newAthlete();
+    const updatedInput = newAthlete({ level: 'principiante' });
 
-  it('al editar recorta el perfil si el jugador baja de nivel', () => {
-    const created = service.addAthlete(newAthlete());
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'athletes' && operation === 'insert') {
+        return { data: dbAthleteFromInput(1, createdInput), error: null };
+      }
+      if (table === 'athletes' && operation === 'update') {
+        return { data: dbAthleteFromInput(1, updatedInput), error: null };
+      }
+      return { data: null, error: null };
+    });
 
-    service.updateAthlete(created.id, newAthlete({ level: 'principiante' }));
+    const created = await service.addAthlete(createdInput);
+    await service.updateAthlete(created!.id, updatedInput);
 
-    const updated = service.athletes().find((athlete) => athlete.id === created.id);
+    const updated = service.athletes().find((athlete) => athlete.id === created!.id);
     expect(updated?.level).toBe('principiante');
     expect(updated?.paddleGrip).toBeNull();
     expect(updated?.club).toBeNull();
   });
 
-  it('rellena los campos nuevos al leer un jugador guardado sin perfil de juego', () => {
-    // Registro con el formato anterior, tal como quedó en localStorage.
-    localStorage.setItem(
-      'tt-trainer-players',
-      JSON.stringify([
-        {
-          id: 1,
-          firstName: 'Pedro',
-          lastName: 'Luna',
-          category: 4,
-          status: 'activo',
-          playerType: 'regular',
-          phone: '+54 11 5555-5555',
-          username: 'pedro.luna',
-          tempPassword: 'TM-2026-ABCD',
-          attendance: 80,
-          birthDate: new Date(2005, 1, 1).toISOString(),
-          dominantHand: 'derecha',
-          paddleGrip: 'clasica',
-          welcomeFormCompleted: false,
-          welcomeForm: null,
-        },
-      ]),
-    );
+  it('guarda el formulario de bienvenida y actualiza el estado del atleta', async () => {
+    const input = newAthlete();
+    const answers: WelcomeFormAnswers = {
+      mainGoal: 'competir',
+      shortTermGoal: 'mejorar saque',
+      longTermGoal: 'subir de categoría',
+      motivation: 'alta',
+      coachSupport: 'planificación',
+      yearsPlaying: '3-a-5',
+      hasCompeted: true,
+      selfPerceivedLevel: 'avanzado',
+      paddleGrip: 'lapicero',
+      rubberForehand: 'liso',
+      rubberBackhand: 'liso',
+      playingStyle: 'ofensivo',
+      club: 'Club',
+      specificGoal: 'Objetivo',
+      trainingDays: [1, 3],
+    };
 
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({});
-    const migrated = TestBed.inject(PlayersService).athletes()[0];
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'welcome_form_answers' && operation === 'upsert') {
+        return { data: null, error: null };
+      }
+      if (table === 'athletes' && operation === 'select') {
+        return {
+          data: [
+            dbAthleteFromInput(1, input, {
+              welcome_form_completed: true,
+              welcome_form_answers: [
+                {
+                  main_goal: answers.mainGoal,
+                  short_term_goal: answers.shortTermGoal,
+                  long_term_goal: answers.longTermGoal,
+                  motivation: answers.motivation,
+                  coach_support: answers.coachSupport,
+                  years_playing: answers.yearsPlaying,
+                  has_competed: answers.hasCompeted,
+                  self_perceived_level: answers.selfPerceivedLevel,
+                  paddle_grip: answers.paddleGrip,
+                  rubber_forehand: answers.rubberForehand,
+                  rubber_backhand: answers.rubberBackhand,
+                  playing_style: answers.playingStyle,
+                  club: answers.club,
+                  specific_goal: answers.specificGoal,
+                  training_days: answers.trainingDays,
+                },
+              ],
+            }),
+          ],
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    });
 
-    expect(migrated.level).toBe('intermedio');
-    expect(migrated.trainingDays).toEqual([]);
-    expect(migrated.rubberForehand).toBeNull();
-    expect(migrated.playingStyle).toBeNull();
-    expect(migrated.birthDate instanceof Date).toBe(true);
+    await service.submitWelcomeForm(1, answers);
+
+    expect(service.isWelcomeFormPending(1)).toBe(false);
+    const athlete = service.athletes()[0];
+    expect(athlete.welcomeFormCompleted).toBe(true);
+    expect(athlete.welcomeForm?.mainGoal).toBe('competir');
+  });
+
+  it('alterna el estado activo/inactivo del atleta en el signal', async () => {
+    const input = newAthlete();
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'athletes' && operation === 'insert') {
+        return { data: dbAthleteFromInput(1, input), error: null };
+      }
+      return { data: null, error: null };
+    });
+
+    const created = await service.addAthlete(input);
+    await service.toggleStatus(created!.id);
+
+    const updated = service.athletes().find((a) => a.id === created!.id);
+    expect(updated?.status).toBe('inactivo');
   });
 });

@@ -1,13 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { addDays, atMidnight, startOfWeek, weekdayOf } from '../../core/date/calendar-dates';
+import { SupabaseService } from '../../core/supabase/supabase.service';
+import { fakeSupabaseService, FakeResolver } from '../../core/supabase/supabase-testing';
 import { CalendarService, ShiftTemplateInput } from './calendar.service';
 import { FreedSlotsService } from './freed-slots.service';
-import { ShiftTemplate, TrainingSession } from './calendar.models';
-import { addDays, atMidnight, weekdayOf } from '../../core/date/calendar-dates';
-import { PlayersService } from '../../core/players/players.service';
+import { ShiftTemplate } from './calendar.models';
 
-const NEW_PLAYER = { id: 99, name: 'Lucía Benítez', category: 4 };
-
-/** Turno sin tope que se dicta solo los miércoles. */
 const MORNING_SHIFT: ShiftTemplateInput = {
   label: 'Turno Madrugada',
   startTime: '07:00',
@@ -17,324 +15,265 @@ const MORNING_SHIFT: ShiftTemplateInput = {
   playerIds: [],
 };
 
-/** Turno con tope y tres jugadores fijos (ids del plantel de demo). */
-const CAPPED_SHIFT: ShiftTemplateInput = {
-  label: 'Turno Tarde',
-  startTime: '16:00',
-  endTime: '18:00',
-  weekdays: [1, 2, 3, 4, 5, 6, 7],
-  capacity: 6,
-  playerIds: [1, 2, 3],
-};
+function dbTemplateFromInput(id: number, input: ShiftTemplateInput) {
+  return {
+    id,
+    label: input.label,
+    start_time: input.startTime,
+    end_time: input.endTime,
+    weekdays: input.weekdays,
+    capacity: input.capacity,
+    player_ids: input.playerIds,
+    created_by: 'coach-uuid',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  };
+}
 
-describe.skip('CalendarService', () => {
+function dbSession(id: number, template: ShiftTemplate, date: Date, attendances: unknown[] = []) {
+  return {
+    id,
+    session_date: date.toISOString().split('T')[0],
+    shift_label: template.label,
+    start_time: template.startTime,
+    end_time: template.endTime,
+    capacity: template.capacity,
+    template_id: template.id,
+    session_attendances: attendances,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  };
+}
+
+describe('CalendarService', () => {
   let service: CalendarService;
-  let freedSlots: FreedSlotsService;
-  const today = atMidnight(new Date());
+  let resolverCalls: { table: string; operation: string; payload: unknown; filters: unknown[] }[];
 
   beforeEach(() => {
-    localStorage.clear();
-    TestBed.configureTestingModule({});
+    resolverCalls = [];
+  });
+
+  function configureService(resolver: FakeResolver) {
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: SupabaseService, useValue: fakeSupabaseService(resolver) },
+        FreedSlotsService,
+      ],
+    });
     service = TestBed.inject(CalendarService);
-    freedSlots = TestBed.inject(FreedSlotsService);
-  });
-
-  /** Deja solo la plantilla indicada y materializa sus sesiones en el rango pedido. */
-  function generate(input: ShiftTemplateInput, days: number): ShiftTemplate {
-    service.templates.set([]);
-    const template = service.addTemplate(input);
-    service.ensureSessionsForRange(today, addDays(today, days - 1));
-    return template;
   }
 
-  function sessionsOf(templateId: number): TrainingSession[] {
-    return service.sessions().filter((session) => session.templateId === templateId);
-  }
-
-  /** Turno con tope, jugadores anotados y cupos libres, para probar la reserva. */
-  function sessionWithFreeSlot(): TrainingSession {
-    const template = generate(CAPPED_SHIFT, 1);
-    const session = sessionsOf(template.id)[0];
-    expect(service.hasFreeSlot(session)).toBe(true);
-    return session;
-  }
-
-  function reload(sessionId: number): TrainingSession {
-    return service.sessions().find((candidate) => candidate.id === sessionId)!;
-  }
-
-  it('arranca con el calendario vacío hasta que el entrenador configura su jornada', () => {
-    expect(service.templates()).toHaveLength(0);
-    expect(service.sessions()).toHaveLength(0);
-  });
-
-  it('calcula los cupos libres descontando solo las reservas confirmadas', () => {
-    const session = sessionWithFreeSlot();
-    expect(service.confirmedCount(session)).toBe(3);
-    expect(service.freeSlots(session)).toBe(3);
-  });
-
-  it('reserva un cupo para un jugador que no estaba anotado', () => {
-    const session = sessionWithFreeSlot();
-    const before = service.confirmedCount(session);
-
-    service.bookAttendance(session.id, NEW_PLAYER);
-
-    const updated = reload(session.id);
-    expect(service.confirmedCount(updated)).toBe(before + 1);
-    expect(service.attendanceFor(updated, NEW_PLAYER.id)?.playerName).toBe(NEW_PLAYER.name);
-  });
-
-  it('no duplica la reserva si el jugador ya está confirmado', () => {
-    const session = sessionWithFreeSlot();
-    service.bookAttendance(session.id, NEW_PLAYER);
-    const afterFirst = service.confirmedCount(reload(session.id));
-
-    service.bookAttendance(session.id, NEW_PLAYER);
-
-    expect(service.confirmedCount(reload(session.id))).toBe(afterFirst);
-    expect(reload(session.id).attendances.filter((a) => a.playerId === NEW_PLAYER.id).length).toBe(
-      1,
-    );
-  });
-
-  it('restaura la reserva cancelada en lugar de crear una nueva', () => {
-    const session = sessionWithFreeSlot();
-    service.bookAttendance(session.id, NEW_PLAYER);
-    const attendance = service.attendanceFor(reload(session.id), NEW_PLAYER.id)!;
-    service.cancelAttendance(session.id, attendance.id);
-    expect(service.attendanceFor(reload(session.id), NEW_PLAYER.id)?.status).toBe('ausente');
-
-    service.bookAttendance(session.id, NEW_PLAYER);
-
-    const updated = reload(session.id);
-    expect(service.attendanceFor(updated, NEW_PLAYER.id)?.status).toBe('confirmado');
-    expect(updated.attendances.filter((a) => a.playerId === NEW_PLAYER.id).length).toBe(1);
-  });
-
-  it('rechaza la reserva cuando el turno está completo', () => {
-    // Se llena un turno reservando con jugadores ficticios hasta agotar los cupos.
-    const session = sessionWithFreeSlot();
-    let filler = 500;
-    while (service.hasFreeSlot(reload(session.id))) {
-      service.bookAttendance(session.id, { id: filler, name: `Relleno ${filler}`, category: 6 });
-      filler++;
-    }
-    const full = reload(session.id);
-    expect(service.freeSlots(full)).toBe(0);
-
-    service.bookAttendance(session.id, NEW_PLAYER);
-
-    expect(service.attendanceFor(reload(session.id), NEW_PLAYER.id)).toBeUndefined();
-  });
-
-  it('cancelar una reserva libera el cupo para otro jugador', () => {
-    const session = sessionWithFreeSlot();
-    const confirmed = session.attendances.find((a) => a.status === 'confirmado')!;
-    const freeBefore = service.freeSlots(session) ?? 0;
-
-    service.cancelAttendance(session.id, confirmed.id);
-
-    expect(service.freeSlots(reload(session.id))).toBe(freeBefore + 1);
-  });
-
-  it('genera sesiones solo en los días de la jornada configurada', () => {
-    const template = generate(MORNING_SHIFT, 14);
-
-    const generated = sessionsOf(template.id);
-    // En 14 días corridos cae exactamente dos veces el mismo día de la semana.
-    expect(generated.length).toBe(2);
-    expect(generated.every((session) => weekdayOf(session.date) === 3)).toBe(true);
-    expect(generated.every((session) => session.startTime === '07:00')).toBe(true);
-  });
-
-  it('no duplica las sesiones al volver a navegar el mismo rango', () => {
-    const template = generate(MORNING_SHIFT, 14);
-    const firstPass = sessionsOf(template.id).length;
-
-    service.ensureSessionsForRange(today, addDays(today, 13));
-
-    expect(sessionsOf(template.id).length).toBe(firstPass);
-  });
-
-  it('no inventa turnos en el pasado', () => {
-    service.templates.set([]);
-    const template = service.addTemplate({ ...MORNING_SHIFT, weekdays: [1, 2, 3, 4, 5, 6, 7] });
-
-    service.ensureSessionsForRange(addDays(today, -14), addDays(today, -1));
-
-    expect(sessionsOf(template.id)).toHaveLength(0);
-  });
-
-  it('anota a los jugadores fijos del turno en cada sesión generada', () => {
-    const athlete = TestBed.inject(PlayersService).addAthlete({
-      firstName: 'Lucía',
-      lastName: 'Benítez',
-      category: 4,
-      birthDate: new Date(2004, 4, 12),
-      dominantHand: 'derecha',
-      phone: '+54 11 5555-5555',
-      playerType: 'regular',
-      level: 'intermedio',
-      paddleGrip: 'clasica',
-      rubberForehand: 'liso',
-      rubberBackhand: 'liso',
-      playingStyle: 'ofensivo',
-      club: null,
-      specificGoal: null,
-      trainingDays: [],
+  it('crea una plantilla y la agrega al signal de plantillas', async () => {
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'shift_templates' && operation === 'insert') {
+        return { data: dbTemplateFromInput(1, payload as ShiftTemplateInput), error: null };
+      }
+      return { data: null, error: null };
     });
 
-    const template = generate(
-      { ...MORNING_SHIFT, weekdays: [1, 2, 3, 4, 5, 6, 7], playerIds: [athlete.id] },
-      2,
-    );
+    const template = await service.addTemplate(MORNING_SHIFT);
 
-    const generated = sessionsOf(template.id);
-    expect(generated).toHaveLength(2);
-    expect(
-      generated.every(
-        (session) =>
-          session.attendances.length === 1 &&
-          session.attendances[0].playerName === 'Lucía Benítez' &&
-          session.attendances[0].status === 'confirmado',
-      ),
-    ).toBe(true);
+    expect(template).not.toBeNull();
+    expect(service.templates()).toContainEqual(template);
   });
 
-  it('un turno sin tope nunca se completa', () => {
-    const template = generate({ ...MORNING_SHIFT, weekdays: [1, 2, 3, 4, 5, 6, 7] }, 1);
-    const session = sessionsOf(template.id)[0];
-    expect(service.freeSlots(session)).toBeNull();
-
-    for (let i = 0; i < 10; i++) {
-      service.bookAttendance(session.id, { id: 700 + i, name: `Jugador ${i}`, category: 5 });
+  it('genera sesiones futuras a partir de una plantilla', async () => {
+    // Buscamos un miércoles dentro de las próximas 6 semanas.
+    const nextWednesday = atMidnight(new Date());
+    while (weekdayOf(nextWednesday) !== 3) {
+      nextWednesday.setDate(nextWednesday.getDate() + 1);
     }
+    const from = startOfWeek(nextWednesday);
+    const to = addDays(from, 41);
 
-    const updated = reload(session.id);
-    expect(service.confirmedCount(updated)).toBe(10);
-    expect(service.hasFreeSlot(updated)).toBe(true);
-  });
+    let sessionsQueryCount = 0;
 
-  it('eliminar un turno borra las sesiones futuras y conserva el historial pasado', () => {
-    const template = generate({ ...MORNING_SHIFT, weekdays: [1, 2, 3, 4, 5, 6, 7] }, 3);
-    const past: TrainingSession = {
-      ...sessionsOf(template.id)[0],
-      id: 9000,
-      date: addDays(today, -7),
-    };
-    service.sessions.update((sessions) => [...sessions, past]);
-
-    service.deleteTemplate(template.id);
-
-    expect(service.templates()).toHaveLength(0);
-    const remaining = sessionsOf(template.id);
-    expect(remaining).toHaveLength(1);
-    expect(remaining[0].id).toBe(past.id);
-  });
-
-  it('editar un turno regenera las sesiones futuras con el horario nuevo', () => {
-    const template = generate({ ...MORNING_SHIFT, weekdays: [1, 2, 3, 4, 5, 6, 7] }, 3);
-    expect(sessionsOf(template.id)).toHaveLength(3);
-
-    service.updateTemplate(template.id, {
-      ...MORNING_SHIFT,
-      weekdays: [1, 2, 3, 4, 5, 6, 7],
-      startTime: '06:00',
-      endTime: '07:30',
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'shift_templates' && operation === 'insert') {
+        return { data: dbTemplateFromInput(1, payload as ShiftTemplateInput), error: null };
+      }
+      if (table === 'training_sessions' && operation === 'select') {
+        sessionsQueryCount++;
+        if (sessionsQueryCount === 1) return { data: [], error: null };
+        const template = service.templates()[0];
+        return {
+          data: template ? [dbSession(100, template, nextWednesday)] : [],
+          error: null,
+        };
+      }
+      return { data: null, error: null };
     });
-    expect(sessionsOf(template.id)).toHaveLength(0);
 
-    service.ensureSessionsForRange(today, addDays(today, 2));
-    const regenerated = sessionsOf(template.id);
-    expect(regenerated).toHaveLength(3);
-    expect(regenerated.every((session) => session.startTime === '06:00')).toBe(true);
+    await service.addTemplate(MORNING_SHIFT);
+    await service.ensureSessionsForRange(from, to);
+
+    const sessions = service.sessions();
+    expect(sessions.length).toBeGreaterThan(0);
+    const wednesdaySession = sessions.find((s) => s.shiftLabel === MORNING_SHIFT.label);
+    expect(wednesdaySession).toBeDefined();
+    expect(wednesdaySession?.templateId).toBe(1);
   });
 
-  it('el entrenador da de baja a un jugador del turno y el cupo queda libre', () => {
-    const session = sessionWithFreeSlot();
-    const attendance = session.attendances[0];
-    const freeBefore = service.freeSlots(session) ?? 0;
+  it('crea un turno puntual y lo refleja en el signal de sesiones', async () => {
+    const date = addDays(atMidnight(new Date()), 1);
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'training_sessions' && operation === 'insert') {
+        const data = payload as Record<string, unknown>;
+        return {
+          data: {
+            id: 50,
+            session_date: data['session_date'] as string,
+            shift_label: data['shift_label'] as string,
+            start_time: data['start_time'] as string,
+            end_time: data['end_time'] as string,
+            capacity: data['capacity'] as number | null,
+            template_id: null,
+            session_attendances: [],
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    });
 
-    service.cancelAttendance(session.id, attendance.id);
-
-    const updated = reload(session.id);
-    expect(service.attendanceFor(updated, attendance.playerId)?.status).toBe('ausente');
-    expect(service.freeSlots(updated)).toBe(freeBefore + 1);
-  });
-
-  it('crea un turno puntual en un día concreto, sin plantilla detrás', () => {
-    const date = addDays(today, 3);
-
-    const created = service.addSessionOn(date, {
-      label: 'Turno particular',
-      startTime: '19:30',
-      endTime: '20:30',
+    const created = await service.addSessionOn(date, {
+      label: 'Particular',
+      startTime: '17:00',
+      endTime: '18:00',
       capacity: 1,
       playerIds: [],
-    })!;
+    });
 
-    expect(created.templateId).toBeNull();
-    expect(created.capacity).toBe(1);
-    expect(service.sessionsForDate(date).map((session) => session.id)).toContain(created.id);
+    expect(created).not.toBeNull();
+    expect(created?.templateId).toBeNull();
+    expect(created?.capacity).toBe(1);
+    expect(service.sessions()).toContainEqual(created);
   });
 
-  it('no crea dos turnos que arranquen a la misma hora el mismo día', () => {
-    const date = addDays(today, 3);
-    const input = {
-      label: 'Turno particular',
-      startTime: '19:30',
-      endTime: '20:30',
-      capacity: null,
-      playerIds: [],
-    };
-    expect(service.addSessionOn(date, input)).not.toBeNull();
+  it('elimina un turno puntual del signal de sesiones', async () => {
+    const date = addDays(atMidnight(new Date()), 1);
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'training_sessions' && operation === 'insert') {
+        return {
+          data: {
+            id: 50,
+            session_date: date.toISOString().split('T')[0],
+            shift_label: 'Particular',
+            start_time: '17:00',
+            end_time: '18:00',
+            capacity: 1,
+            template_id: null,
+            session_attendances: [],
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    });
 
-    expect(service.addSessionOn(date, { ...input, label: 'Otro' })).toBeNull();
-    expect(service.sessionsForDate(date)).toHaveLength(1);
-  });
-
-  it('el turno puntual arranca con los jugadores indicados', () => {
-    const created = service.addSessionOn(addDays(today, 4), {
-      label: 'Particular con Matías',
-      startTime: '20:00',
-      endTime: '21:00',
+    const created = await service.addSessionOn(date, {
+      label: 'Particular',
+      startTime: '17:00',
+      endTime: '18:00',
       capacity: 1,
-      playerIds: [1],
-    })!;
-
-    expect(created.attendances).toHaveLength(1);
-    expect(created.attendances[0].playerId).toBe(1);
-    expect(created.attendances[0].status).toBe('confirmado');
-  });
-
-  it('elimina un turno puntual del calendario', () => {
-    const date = addDays(today, 5);
-    const created = service.addSessionOn(date, {
-      label: 'Turno particular',
-      startTime: '07:30',
-      endTime: '08:30',
-      capacity: null,
       playerIds: [],
-    })!;
+    });
 
-    service.removeSession(created.id);
+    await service.removeSession(created!.id);
 
-    expect(service.sessionsForDate(date)).toHaveLength(0);
+    expect(service.sessions().some((s) => s.id === created!.id)).toBe(false);
   });
 
-  it('cancelar registra un cupo liberado pendiente y deshacerlo lo quita', () => {
-    const session = sessionWithFreeSlot();
-    const confirmed = session.attendances.find((a) => a.status === 'confirmado')!;
+  it('reserva un cupo para un jugador en una sesión', async () => {
+    const date = addDays(atMidnight(new Date()), 1);
+    const player = { id: 1, name: 'Jugador Test', category: 4 };
 
-    const event = service.cancelAttendance(session.id, confirmed.id);
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'training_sessions' && operation === 'select') {
+        return {
+          data: [
+            {
+              id: 60,
+              session_date: date.toISOString().split('T')[0],
+              shift_label: 'Turno',
+              start_time: '09:00',
+              end_time: '10:00',
+              capacity: 6,
+              template_id: null,
+              session_attendances: [
+                {
+                  id: 200,
+                  athlete_id: player.id,
+                  status: 'confirmado',
+                  presence: null,
+                  athlete: {
+                    first_name: 'Jugador',
+                    last_name: 'Test',
+                    category: player.category,
+                  },
+                },
+              ],
+            },
+          ],
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    });
 
-    expect(event).not.toBeNull();
-    expect(event!.playerName).toBe(confirmed.playerName);
-    expect(freedSlots.pending().map((pending) => pending.id)).toContain(event!.id);
+    await service.loadSessionsForRange(date, date);
+    await service.bookAttendance(60, player);
 
-    service.restoreAttendance(session.id, confirmed.id);
+    const session = service.sessions().find((s) => s.id === 60);
+    expect(session?.attendances.some((a) => a.playerId === player.id)).toBe(true);
+  });
 
-    expect(freedSlots.pending()).toHaveLength(0);
+  it('registra la presencia de un jugador en una sesión', async () => {
+    const date = addDays(atMidnight(new Date()), 1);
+
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'training_sessions' && operation === 'select') {
+        return {
+          data: [
+            {
+              id: 70,
+              session_date: date.toISOString().split('T')[0],
+              shift_label: 'Turno',
+              start_time: '09:00',
+              end_time: '10:00',
+              capacity: 6,
+              template_id: null,
+              session_attendances: [
+                {
+                  id: 300,
+                  athlete_id: 1,
+                  status: 'confirmado',
+                  presence: 'presente',
+                  athlete: { first_name: 'Jugador', last_name: 'Test', category: 4 },
+                },
+              ],
+            },
+          ],
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    });
+
+    await service.loadSessionsForRange(date, date);
+    await service.setPresence(70, 300, 'ausente');
+
+    const attendance = service.sessions().find((s) => s.id === 70)?.attendances[0];
+    expect(attendance?.presence).toBe('ausente');
   });
 });

@@ -1,83 +1,87 @@
 import { TestBed } from '@angular/core/testing';
+import { SupabaseService } from '../../core/supabase/supabase.service';
+import { fakeSupabaseService, FakeResolver } from '../../core/supabase/supabase-testing';
 import { FreedSlotsService } from './freed-slots.service';
-import { Attendance, TrainingSession } from './calendar.models';
 
-const ATTENDANCE: Attendance = {
-  id: 3,
-  playerId: 7,
-  playerName: 'Benjamín Castro',
-  category: 5,
-  status: 'ausente',
-  presence: null,
-};
+function dbFreedSlot(id: number, status: 'pendiente' | 'avisado' | 'descartado' = 'pendiente') {
+  return {
+    id,
+    session_id: 1,
+    attendance_id: 10,
+    athlete_id: 2,
+    player_name: 'Jugador Test',
+    session_date: '2026-01-15',
+    start_time: '17:00',
+    end_time: '18:00',
+    shift_label: 'Turno Test',
+    status,
+    notified_player_ids: [] as number[],
+    notified_at: status === 'avisado' ? '2026-01-10T10:00:00Z' : null,
+    freed_at: '2026-01-10T09:00:00Z',
+  };
+}
 
-const SESSION: TrainingSession = {
-  id: 42,
-  date: new Date(2026, 0, 14),
-  shiftLabel: 'Turno Mañana',
-  startTime: '09:00',
-  endTime: '13:00',
-  capacity: null,
-  attendances: [ATTENDANCE],
-  templateId: 1,
-};
-
-describe.skip('FreedSlotsService', () => {
+describe('FreedSlotsService', () => {
   let service: FreedSlotsService;
+  let resolverCalls: { table: string; operation: string; payload: unknown; filters: unknown[] }[];
 
   beforeEach(() => {
-    localStorage.clear();
-    TestBed.configureTestingModule({});
+    resolverCalls = [];
+  });
+
+  function configureService(resolver: FakeResolver) {
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: fakeSupabaseService(resolver) }],
+    });
     service = TestBed.inject(FreedSlotsService);
-  });
+  }
 
-  it('registra el cupo liberado como pendiente con los datos del turno', () => {
-    const event = service.register(SESSION, ATTENDANCE);
+  it('carga los cupos liberados pendientes', async () => {
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'freed_slots' && operation === 'select') {
+        return { data: [dbFreedSlot(1), dbFreedSlot(2, 'descartado')], error: null };
+      }
+      return { data: null, error: null };
+    });
 
-    expect(event.status).toBe('pendiente');
-    expect(event.playerName).toBe('Benjamín Castro');
-    expect(event.shiftLabel).toBe('Turno Mañana');
+    await service.loadEvents();
+
     expect(service.pending()).toHaveLength(1);
+    expect(service.pending()[0].id).toBe(1);
   });
 
-  it('deja constancia de los destinatarios al notificar y sale de los pendientes', () => {
-    const event = service.register(SESSION, ATTENDANCE);
+  it('marca un cupo como avisado con los destinatarios indicados', async () => {
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'freed_slots' && operation === 'select') {
+        return { data: [dbFreedSlot(1)], error: null };
+      }
+      return { data: null, error: null };
+    });
 
-    service.markNotified(event.id, [1, 2, 3]);
+    await service.loadEvents();
+    await service.markNotified(1, [3, 4]);
 
-    const stored = service.find(event.id)!;
-    expect(stored.status).toBe('avisado');
-    expect(stored.notifiedPlayerIds).toEqual([1, 2, 3]);
-    expect(stored.notifiedAt).not.toBeNull();
-    expect(service.pending()).toHaveLength(0);
+    const event = service.events().find((e) => e.id === 1);
+    expect(event?.status).toBe('avisado');
+    expect(event?.notifiedPlayerIds).toEqual([3, 4]);
+    expect(event?.notifiedAt).not.toBeNull();
   });
 
-  it('descartar el aviso lo quita de los pendientes sin borrar el registro', () => {
-    const event = service.register(SESSION, ATTENDANCE);
+  it('descarta un cupo liberado', async () => {
+    configureService((table, operation, payload, filters) => {
+      resolverCalls.push({ table, operation, payload, filters });
+      if (table === 'freed_slots' && operation === 'select') {
+        return { data: [dbFreedSlot(1)], error: null };
+      }
+      return { data: null, error: null };
+    });
 
-    service.dismiss(event.id);
+    await service.loadEvents();
+    await service.dismiss(1);
 
-    expect(service.find(event.id)?.status).toBe('descartado');
-    expect(service.pending()).toHaveLength(0);
-  });
-
-  it('elimina el evento cuando el cupo vuelve a ocuparse', () => {
-    service.register(SESSION, ATTENDANCE);
-
-    service.removeFor(SESSION.id, ATTENDANCE.id);
-
-    expect(service.events()).toHaveLength(0);
-  });
-
-  it('persiste los eventos entre instancias rehidratando las fechas', () => {
-    service.register(SESSION, ATTENDANCE);
-
-    TestBed.resetTestingModule();
-    TestBed.configureTestingModule({});
-    const reloaded = TestBed.inject(FreedSlotsService);
-
-    expect(reloaded.pending()).toHaveLength(1);
-    expect(reloaded.pending()[0].sessionDate).toBeInstanceOf(Date);
-    expect(reloaded.pending()[0].createdAt).toBeInstanceOf(Date);
+    const event = service.events().find((e) => e.id === 1);
+    expect(event?.status).toBe('descartado');
   });
 });
