@@ -216,6 +216,7 @@ interface DbWelcomeForm {
 
 interface DbAthlete {
   id: number;
+  user_id: string | null;
   first_name: string;
   last_name: string;
   category: Category;
@@ -287,6 +288,36 @@ function fromDbRow(row: DbAthlete): Athlete {
     welcomeFormCompleted: row.welcome_form_completed,
     welcomeForm: welcomeAnswers ? fromDbWelcomeForm(welcomeAnswers) : null,
   };
+}
+
+function athleteFromInput(id: number, input: NewAthleteInput, username: string, tempPassword: string): Athlete {
+  const profile = profileOf(input);
+  const row: DbAthlete = {
+    id,
+    user_id: null,
+    first_name: input.firstName,
+    last_name: input.lastName,
+    category: input.category,
+    status: 'activo',
+    player_type: input.playerType,
+    phone: input.phone,
+    username,
+    temp_password: tempPassword,
+    attendance_rate: 0,
+    birth_date: dateKey(input.birthDate),
+    dominant_hand: input.dominantHand,
+    level: profile.level,
+    paddle_grip: profile.paddle_grip,
+    rubber_forehand: profile.rubber_forehand,
+    rubber_backhand: profile.rubber_backhand,
+    playing_style: profile.playing_style,
+    club: profile.club,
+    specific_goal: profile.specific_goal,
+    training_days: profile.training_days,
+    welcome_form_completed: false,
+    welcome_form_answers: [],
+  };
+  return fromDbRow(row);
 }
 
 function fromDbWelcomeForm(row: DbWelcomeForm): WelcomeFormAnswers {
@@ -372,7 +403,7 @@ export class PlayersService {
     const username = this.reserveUsername(input.firstName, input.lastName, usedUsernames);
     const tempPassword = `TM-${new Date().getFullYear()}-${randomAlnum(4)}`;
 
-    const { data, error } = await this.supabase
+    const { data: inserted, error } = await this.supabase
       .from('athletes')
       .insert({
         first_name: input.firstName,
@@ -389,22 +420,22 @@ export class PlayersService {
         welcome_form_completed: false,
         ...profileOf(input),
       })
-      .select('*, welcome_form_answers(*)')
-      .single<DbAthlete>();
+      .select('id')
+      .single<{ id: number }>();
 
-    if (error || !data) {
+    if (error || !inserted) {
       console.error('Error creando atleta:', error);
       return null;
     }
 
-    const athlete = fromDbRow(data as DbAthlete);
+    const athlete = athleteFromInput(inserted.id, input, username, tempPassword);
     this._athletes.update((list) => [...list, athlete].sort((a, b) => a.lastName.localeCompare(b.lastName)));
     return athlete;
   }
 
   /** Actualiza los datos editables de un jugador existente (no toca usuario/clave/estado/asistencia). */
   async updateAthlete(athleteId: number, input: NewAthleteInput): Promise<Athlete | null> {
-    const { data, error } = await this.supabase
+    const { error } = await this.supabase
       .from('athletes')
       .update({
         first_name: input.firstName,
@@ -416,20 +447,15 @@ export class PlayersService {
         dominant_hand: input.dominantHand,
         ...profileOf(input),
       })
-      .eq('id', athleteId)
-      .select('*, welcome_form_answers(*)')
-      .single<DbAthlete>();
+      .eq('id', athleteId);
 
-    if (error || !data) {
+    if (error) {
       console.error('Error actualizando atleta:', error);
       return null;
     }
 
-    const updated = fromDbRow(data as DbAthlete);
-    this._athletes.update((list) =>
-      list.map((a) => (a.id === athleteId ? updated : a)).sort((a, b) => a.lastName.localeCompare(b.lastName)),
-    );
-    return updated;
+    await this.loadAthletes();
+    return this._athletes().find((a) => a.id === athleteId) ?? null;
   }
 
   /**

@@ -120,7 +120,7 @@ describe('PlayersService', () => {
     configureService((table, operation, payload, filters) => {
       resolverCalls.push({ table, operation, payload, filters });
       if (table === 'athletes' && operation === 'insert') {
-        return { data: dbAthleteFromInput(1, input), error: null };
+        return { data: { id: 1 }, error: null };
       }
       return { data: null, error: null };
     });
@@ -139,7 +139,7 @@ describe('PlayersService', () => {
     configureService((table, operation, payload, filters) => {
       resolverCalls.push({ table, operation, payload, filters });
       if (table === 'athletes' && operation === 'insert') {
-        return { data: dbAthleteFromInput(1, input), error: null };
+        return { data: { id: 1 }, error: null };
       }
       return { data: null, error: null };
     });
@@ -160,7 +160,7 @@ describe('PlayersService', () => {
     configureService((table, operation, payload, filters) => {
       resolverCalls.push({ table, operation, payload, filters });
       if (table === 'athletes' && operation === 'insert') {
-        return { data: dbAthleteFromInput(1, input), error: null };
+        return { data: { id: 1 }, error: null };
       }
       return { data: null, error: null };
     });
@@ -180,7 +180,7 @@ describe('PlayersService', () => {
       if (table === 'athletes' && operation === 'insert') {
         insertCount++;
         const input = insertCount === 1 ? newAthlete({ category: 0 }) : newAthlete({ category: 9 });
-        return { data: dbAthleteFromInput(insertCount, input), error: null };
+        return { data: { id: insertCount }, error: null };
       }
       return { data: null, error: null };
     });
@@ -199,10 +199,10 @@ describe('PlayersService', () => {
     configureService((table, operation, payload, filters) => {
       resolverCalls.push({ table, operation, payload, filters });
       if (table === 'athletes' && operation === 'insert') {
-        return { data: dbAthleteFromInput(1, createdInput), error: null };
+        return { data: { id: 1 }, error: null };
       }
-      if (table === 'athletes' && operation === 'update') {
-        return { data: dbAthleteFromInput(1, updatedInput), error: null };
+      if (table === 'athletes' && (operation === 'update' || operation === 'select')) {
+        return { data: [dbAthleteFromInput(1, updatedInput)], error: null };
       }
       return { data: null, error: null };
     });
@@ -286,7 +286,7 @@ describe('PlayersService', () => {
     configureService((table, operation, payload, filters) => {
       resolverCalls.push({ table, operation, payload, filters });
       if (table === 'athletes' && operation === 'insert') {
-        return { data: dbAthleteFromInput(1, input), error: null };
+        return { data: { id: 1 }, error: null };
       }
       return { data: null, error: null };
     });
