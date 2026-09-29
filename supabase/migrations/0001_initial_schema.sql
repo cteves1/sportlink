@@ -19,6 +19,20 @@ create type public.years_playing as enum ('menos-de-1', '1-a-3', '3-a-5', 'mas-d
 create type public.main_goal as enum ('competir', 'mejorar-tecnica', 'socializar', 'mantenerse-en-forma', 'otro');
 
 -- ------------------------------------------------------------------
+-- Perfiles: extienden auth.users con el rol del negocio
+-- ------------------------------------------------------------------
+
+create table public.profiles (
+  id uuid primary key references auth.users on delete cascade,
+  role public.user_role not null default 'jugador',
+  athlete_id int,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.profiles is 'Perfil de negocio vinculado a auth.users. Un jugador puede estar ligado a un athlete.';
+
+-- ------------------------------------------------------------------
 -- Helper: ¿el usuario actual es entrenador o admin?
 -- ------------------------------------------------------------------
 
@@ -34,20 +48,6 @@ as $$
       and role in ('entrenador', 'admin')
   );
 $$;
-
--- ------------------------------------------------------------------
--- Perfiles: extienden auth.users con el rol del negocio
--- ------------------------------------------------------------------
-
-create table public.profiles (
-  id uuid primary key references auth.users on delete cascade,
-  role public.user_role not null default 'jugador',
-  athlete_id int,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-comment on table public.profiles is 'Perfil de negocio vinculado a auth.users. Un jugador puede estar ligado a un athlete.';
 
 -- ------------------------------------------------------------------
 -- Atletas / jugadores
