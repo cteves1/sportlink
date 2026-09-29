@@ -34,6 +34,12 @@ import { PlayerFormModal } from '../../shared/player-form-modal/player-form-moda
 import { ProgressChart, ProgressSeries } from '../../shared/progress-chart/progress-chart';
 import { TimerModal } from '../../shared/timer-modal/timer-modal';
 import { PROGRESS_BY_RANGE, PROGRESS_RANGE_LABELS, ProgressRange } from './progress.mock';
+import { AtletaService } from '../atleta/atleta.service';
+import {
+  TRAINING_LOAD_LABELS,
+  WORK_TYPE_LABELS,
+  dailyMesocyclePlan,
+} from '../atleta/periodization';
 
 interface Athlete {
   id: number;
@@ -77,11 +83,6 @@ interface NextTraining {
   focus: string;
 }
 
-interface CoachNote {
-  text: string;
-  updatedAt: Date;
-}
-
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -116,7 +117,11 @@ interface CoachNote {
 export class Home {
   private readonly authService = inject(AuthService);
   private readonly playersService = inject(PlayersService);
+  private readonly atletaService = inject(AtletaService);
   private readonly router = inject(Router);
+
+  protected readonly trainingLoadLabels = TRAINING_LOAD_LABELS;
+  protected readonly workTypeLabels = WORK_TYPE_LABELS;
 
   private readonly coachName = 'Entrenador';
 
@@ -274,9 +279,10 @@ export class Home {
     return category === undefined ? '-' : categoryLabel(category);
   });
 
-  protected readonly coachNote = signal<CoachNote>({
-    text: 'Mejorar la flexión de piernas en el desplazamiento lateral. En el topspin de revés, recuerda terminar el golpe hacia adelante y no tan arriba.',
-    updatedAt: new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate() - 2),
+  protected readonly todaysMesocyclePlan = computed(() => {
+    const athleteId = this.authService.user()?.athleteId;
+    if (athleteId === undefined) return null;
+    return dailyMesocyclePlan(this.atletaService.profileFor(athleteId).macrocycles, this.today);
   });
 
   protected readonly playerStats = computed<PlayerStats>(() => ({
@@ -292,12 +298,6 @@ export class Home {
     table: 'Mesa 2',
     focus: 'Servicio y Ataque de Tercera Bola',
   });
-
-  protected readonly formattedNoteDate = computed(() =>
-    new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(
-      this.coachNote().updatedAt,
-    ),
-  );
 
   protected readonly formattedNextTrainingDate = computed(() =>
     new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(

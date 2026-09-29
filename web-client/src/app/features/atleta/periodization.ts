@@ -81,6 +81,30 @@ export const WORK_TYPE_OPTIONS: readonly WorkType[] = [
   'recuperacion',
 ];
 
+export interface DailyMesocyclePlan {
+  mesocycle: Mesocycle;
+  day: MicrocycleDay;
+}
+
+export function dailyMesocyclePlan(
+  macrocycles: readonly Macrocycle[],
+  date: Date,
+): DailyMesocyclePlan | null {
+  const time = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const mesocycle = macrocycles
+    .flatMap((macrocycle) => macrocycle.mesocycles)
+    .find(
+      (candidate) =>
+        time >= new Date(candidate.startDate).setHours(0, 0, 0, 0) &&
+        time <= new Date(candidate.endDate).setHours(0, 0, 0, 0),
+    );
+  if (!mesocycle) return null;
+
+  const weekday = (date.getDay() === 0 ? 7 : date.getDay()) as MicrocycleDay['weekday'];
+  const day = mesocycle.microcycle.find((candidate) => candidate.weekday === weekday);
+  return day ? { mesocycle, day } : null;
+}
+
 /** Carga dominante de cada fase; el pico de volumen se ajusta luego en `buildMesocycles`. */
 const PHASE_LOAD: Record<MesocyclePhase, TrainingLoad> = {
   'preparatorio-general': 'media',

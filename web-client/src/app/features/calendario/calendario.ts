@@ -31,6 +31,13 @@ import { ShiftConfig } from './shift-config/shift-config';
 import { FreedSlotNotice } from './freed-slot-notice/freed-slot-notice';
 import { Attendance, FreedSlotEvent, Presence, TrainingSession, UserRole } from './calendar.models';
 import { AuthService } from '../../core/auth/auth.service';
+import { AtletaService } from '../atleta/atleta.service';
+import {
+  DailyMesocyclePlan,
+  TRAINING_LOAD_LABELS,
+  WORK_TYPE_LABELS,
+  dailyMesocyclePlan,
+} from '../atleta/periodization';
 import {
   Athlete,
   Category,
@@ -96,9 +103,12 @@ export class Calendario implements OnInit {
   protected readonly freedSlotsService = inject(FreedSlotsService);
   private readonly authService = inject(AuthService);
   private readonly playersService = inject(PlayersService);
+  private readonly atletaService = inject(AtletaService);
   private readonly route = inject(ActivatedRoute);
 
   protected readonly weekdayLabels = WEEKDAY_LABELS;
+  protected readonly trainingLoadLabels = TRAINING_LOAD_LABELS;
+  protected readonly workTypeLabels = WORK_TYPE_LABELS;
 
   protected readonly role = this.calendarService.role;
   protected readonly players = this.calendarService.players;
@@ -441,6 +451,11 @@ export class Calendario implements OnInit {
   protected isSelectedDay(date: Date): boolean {
     const selected = this.selectedDate();
     return selected !== null && isSameDay(selected, date);
+  }
+
+  protected mesocyclePlanFor(date: Date): DailyMesocyclePlan | null {
+    if (this.role() !== 'jugador') return null;
+    return dailyMesocyclePlan(this.atletaService.profileFor(this.currentPlayer().id).macrocycles, date);
   }
 
   protected selectDay(date: Date): void {

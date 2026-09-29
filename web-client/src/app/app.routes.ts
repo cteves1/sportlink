@@ -1,5 +1,10 @@
 import { Routes } from '@angular/router';
-import { authGuard, adminGuard, welcomeFormGuard, pendingWelcomeFormGuard } from './core/auth/auth.guard';
+import {
+  authGuard,
+  adminGuard,
+  welcomeFormGuard,
+  pendingWelcomeFormGuard,
+} from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {
@@ -38,12 +43,17 @@ export const routes: Routes = [
       {
         // Ficha de seguimiento del atleta élite (categoría 1), con sus planillas en pestañas.
         path: 'jugadores/:id',
-        loadComponent: () => import('./features/atleta/atleta-detalle').then((m) => m.AtletaDetalle),
+        loadComponent: () =>
+          import('./features/atleta/atleta-detalle').then((m) => m.AtletaDetalle),
         canActivate: [adminGuard],
       },
       {
         path: 'calendario',
         loadComponent: () => import('./features/calendario/calendario').then((m) => m.Calendario),
+      },
+      {
+        path: 'media',
+        loadComponent: () => import('./features/media/media').then((m) => m.Media),
       },
       {
         path: 'coach-mode',

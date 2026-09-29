@@ -1,4 +1,9 @@
-import { MacrocycleInput, buildMacrocycle, weeksBetween } from './periodization';
+import {
+  MacrocycleInput,
+  buildMacrocycle,
+  dailyMesocyclePlan,
+  weeksBetween,
+} from './periodization';
 import { MesocyclePhase } from './atleta.models';
 
 /** Macrociclo de 9 meses con el torneo objetivo en octubre y descarga hasta diciembre. */
@@ -116,5 +121,20 @@ describe('buildMacrocycle', () => {
     );
 
     expect(phases).toEqual(['competitivo']);
+  });
+
+  it('obtiene el trabajo diario del microciclo para una fecha planificada', () => {
+    const macrocycle = buildMacrocycle(1, input());
+    const plan = dailyMesocyclePlan([macrocycle], new Date(2026, 2, 3));
+
+    expect(plan?.mesocycle.id).toBe(macrocycle.mesocycles[0].id);
+    expect(plan?.day.weekday).toBe(2);
+    expect(plan?.day.goal).toBeTruthy();
+  });
+
+  it('no devuelve trabajo fuera de los mesociclos planificados', () => {
+    const macrocycle = buildMacrocycle(1, input());
+
+    expect(dailyMesocyclePlan([macrocycle], new Date(2026, 1, 28))).toBeNull();
   });
 });

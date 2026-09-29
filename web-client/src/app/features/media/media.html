@@ -1,0 +1,136 @@
+<div class="flex flex-col gap-6">
+  <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold text-gray-900">Media</h1>
+      <p class="mt-1 text-sm text-gray-500">Revive partidos y analiza videos de competición.</p>
+    </div>
+    <div
+      class="inline-flex items-center gap-2 self-start rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700"
+    >
+      <svg lucideTrophy [size]="15" class="block"></svg>
+      {{ videos().length }} videos
+    </div>
+  </header>
+
+  <nav class="flex gap-2 overflow-x-auto pb-1" aria-label="Filtrar videos por nivel">
+    @for (level of levels; track level) {
+      <button
+        type="button"
+        (click)="selectLevel(level)"
+        class="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors"
+        [class.bg-brand-600]="selectedLevel() === level"
+        [class.text-white]="selectedLevel() === level"
+        [class.bg-white]="selectedLevel() !== level"
+        [class.text-gray-600]="selectedLevel() !== level"
+        [class.border]="selectedLevel() !== level"
+        [class.border-gray-200]="selectedLevel() !== level"
+      >
+        {{ level }}
+      </button>
+    }
+  </nav>
+
+  <section class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+    @for (video of filteredVideos(); track video.id) {
+      <article
+        class="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <button
+          type="button"
+          (click)="play(video.id)"
+          class="relative flex aspect-video w-full items-center justify-center overflow-hidden bg-gradient-to-br text-white"
+          [class]="video.accent"
+          [attr.aria-label]="'Reproducir ' + video.title"
+        >
+          <span class="absolute inset-0 bg-black/10 transition group-hover:bg-black/20"></span>
+          <span
+            class="relative inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-lg transition group-hover:scale-110"
+          >
+            <svg lucidePlay [size]="24" class="ml-1 block" fill="currentColor"></svg>
+          </span>
+          <span
+            class="absolute bottom-3 right-3 rounded bg-black/70 px-2 py-1 text-xs font-medium"
+            >{{ video.duration }}</span
+          >
+          <span
+            class="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-gray-800"
+            >{{ video.round }}</span
+          >
+        </button>
+
+        <div class="flex flex-col gap-3 p-4">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-brand-700">
+              {{ video.competition }}
+            </p>
+            <h2 class="mt-1 text-base font-semibold text-gray-900">{{ video.title }}</h2>
+          </div>
+          <p class="line-clamp-2 text-sm leading-relaxed text-gray-500">{{ video.description }}</p>
+          <div
+            class="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3 text-xs text-gray-500"
+          >
+            <span class="inline-flex items-center gap-1.5">
+              <svg lucideCalendarDays [size]="14" class="block"></svg>
+              {{ formatDate(video.date) }}
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <svg lucideTrophy [size]="14" class="block"></svg>
+              {{ video.level }}
+            </span>
+          </div>
+        </div>
+      </article>
+    } @empty {
+      <div
+        class="col-span-full rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500"
+      >
+        No hay videos disponibles para este nivel.
+      </div>
+    }
+  </section>
+</div>
+
+@if (selectedVideo(); as video) {
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+    (click)="closePlayer()"
+  >
+    <section
+      class="w-full max-w-4xl overflow-hidden rounded-2xl bg-gray-950 shadow-2xl"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="flex items-start justify-between gap-4 p-4 text-white">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-brand-300">
+            {{ video.competition }}
+          </p>
+          <h2 class="mt-1 text-lg font-semibold">{{ video.title }}</h2>
+        </div>
+        <button
+          type="button"
+          (click)="closePlayer()"
+          class="rounded-lg p-2 text-gray-300 hover:bg-white/10 hover:text-white"
+          aria-label="Cerrar video"
+        >
+          <svg lucideX [size]="20" class="block"></svg>
+        </button>
+      </div>
+      <video
+        class="aspect-video w-full bg-black"
+        [src]="video.url"
+        controls
+        autoplay
+        preload="metadata"
+      ></video>
+      <div
+        class="flex flex-col gap-2 p-4 text-gray-300 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <p class="text-sm">{{ video.description }}</p>
+        <span class="inline-flex shrink-0 items-center gap-1.5 text-xs text-gray-400">
+          <svg lucideClock [size]="14" class="block"></svg>
+          {{ video.duration }}
+        </span>
+      </div>
+    </section>
+  </div>
+}
