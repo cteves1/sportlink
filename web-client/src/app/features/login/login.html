@@ -40,22 +40,20 @@
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="flex flex-col gap-4">
           <div>
-            <label for="email" class="mb-1 block text-sm font-medium text-gray-700">
-              Usuario o email
-            </label>
+            <label for="email" class="mb-1 block text-sm font-medium text-gray-700">Usuario</label>
             <input
               id="email"
               type="text"
               formControlName="email"
-              autocomplete="email"
+              autocomplete="username"
               [class.border-red-500]="form.controls.email.invalid && form.controls.email.touched"
               [class.focus:border-red-500]="form.controls.email.invalid && form.controls.email.touched"
               [class.focus:ring-red-500]="form.controls.email.invalid && form.controls.email.touched"
               class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-              placeholder="tu@email.com o tu usuario"
+              placeholder="tu usuario"
             />
             @if (form.controls.email.invalid && form.controls.email.touched) {
-              <p class="mt-1 text-xs text-red-600">Ingresa un usuario o email válido.</p>
+              <p class="mt-1 text-xs text-red-600">Ingresá tu usuario.</p>
             }
           </div>
 
