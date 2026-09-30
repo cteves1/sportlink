@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { PlayersService } from '../../core/players/players.service';
 import { CalendarService } from '../../features/calendario/calendar.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -19,11 +20,12 @@ export class Login {
   private readonly calendarService = inject(CalendarService);
   private readonly router = inject(Router);
 
+  protected readonly version = environment.version;
   protected readonly errorMessage = signal<string | null>(null);
 
   protected readonly form = this.fb.nonNullable.group({
-    email: ['test@test.com', [Validators.required, Validators.email]],
-    password: ['test', [Validators.required, Validators.minLength(4)]],
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(4)]],
   });
 
   protected async submit(): Promise<void> {
