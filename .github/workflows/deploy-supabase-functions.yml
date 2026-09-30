@@ -20,6 +20,7 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Link project
         run: supabase link --project-ref kbkpvkhyyonatkjtfcfj
