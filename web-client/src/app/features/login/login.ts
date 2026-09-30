@@ -1,10 +1,41 @@
 import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { PlayersService } from '../../core/players/players.service';
 import { CalendarService } from '../../features/calendario/calendar.service';
 import { environment } from '../../../environments/environment';
+
+function emailOrUsernameValidator(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  if (value.length === 0) {
+    return { required: true };
+  }
+  if (value.includes('@')) {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(value)) {
+      return { email: true };
+    }
+  }
+  return null;
+}
+
+function passwordValidator(control: AbstractControl): ValidationErrors | null {
+  const value = String(control.value ?? '').trim();
+  if (value.length === 0) {
+    return { required: true };
+  }
+  if (value.length < 4) {
+    return { minlength: { requiredLength: 4, actualLength: value.length } };
+  }
+  return null;
+}
 
 @Component({
   selector: 'app-login',
@@ -25,8 +56,8 @@ export class Login {
   protected readonly showPassword = signal(false);
 
   protected readonly form = this.fb.nonNullable.group({
-    email: ['', [Validators.required]],
-    password: ['', [Validators.required, Validators.minLength(4)]],
+    email: ['', [emailOrUsernameValidator]],
+    password: ['', [passwordValidator]],
   });
 
   protected togglePasswordVisibility(): void {
