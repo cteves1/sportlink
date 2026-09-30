@@ -22,11 +22,16 @@ export class Login {
 
   protected readonly version = environment.version;
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly showPassword = signal(false);
 
   protected readonly form = this.fb.nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
+    email: ['', [Validators.required]],
     password: ['', [Validators.required, Validators.minLength(4)]],
   });
+
+  protected togglePasswordVisibility(): void {
+    this.showPassword.update((value) => !value);
+  }
 
   protected async submit(): Promise<void> {
     if (this.form.invalid) {
