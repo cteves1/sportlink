@@ -71,9 +71,10 @@ export class Login {
     }
 
     const { email: rawEmail, password } = this.form.getRawValue();
-    const email = rawEmail.trim().includes('@')
-      ? rawEmail.trim()
-      : `${rawEmail.trim()}@sportlink.local`;
+    const trimmedIdentifier = rawEmail.trim().toLowerCase();
+    const email = trimmedIdentifier.includes('@')
+      ? trimmedIdentifier
+      : `${trimmedIdentifier}@sportlink.local`;
     const result = await this.authService.login(email, password);
 
     if (!result.success) {
