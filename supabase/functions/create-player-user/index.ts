@@ -79,18 +79,19 @@ Deno.serve(async (req) => {
     const email = `${username}@sportlink.local`;
 
     // Buscar si ya existe un auth user con este email.
-    const { data: existingUser, error: findError } = await supabase
-      .schema('auth')
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
+    // No se puede consultar auth.users por PostgREST desde una Edge Function,
+    // por eso usamos auth.admin.listUsers.
+    const { data: userList, error: listError } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
 
-    if (findError) {
-      console.error('find user error:', findError);
+    if (listError) {
+      console.error('list users error:', listError);
       return jsonResponse({ error: 'Error buscando usuario existente' }, 500);
     }
 
+    const existingUser = userList?.users?.find((u) => u.email === email);
     let userId: string;
 
     if (existingUser) {
