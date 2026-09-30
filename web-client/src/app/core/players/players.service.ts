@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { dateKey } from '../date/calendar-dates';
 import { SupabaseService } from '../supabase/supabase.service';
+import { environment } from '../../../environments/environment';
 
 /**
  * Nivel de juego. Se ordena de más fuerte a más novato:
@@ -443,18 +444,38 @@ export class PlayersService {
     // Crea la cuenta de autenticación del jugador a través de una Edge Function
     // que usa la service_role key (no se expone en el frontend).
     try {
-      const { error: fnError } = await this.supabase.functions.invoke('create-player-user', {
-        body: {
-          athlete_id: athlete.id,
-          username: athlete.username,
-          temp_password: athlete.tempPassword,
-          first_name: athlete.firstName,
-          last_name: athlete.lastName,
-        },
-      });
-      if (fnError) {
-        console.error('Error creando usuario de auth:', fnError);
+      const {
+        data: { session },
+      } = await this.supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No hay sesión activa para invocar create-player-user');
       }
+
+      const response = await fetch(
+        `${environment.supabase.url}/functions/v1/create-player-user`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            athlete_id: athlete.id,
+            username: athlete.username,
+            temp_password: athlete.tempPassword,
+            first_name: athlete.firstName,
+            last_name: athlete.lastName,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorBody = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errorBody.error ?? `Error ${response.status} al crear usuario`);
+      }
+
+      const result = (await response.json()) as { user_id: string };
+      console.log('Usuario de auth creado/vinculado:', result.user_id);
     } catch (err) {
       console.error('Error invocando create-player-user:', err);
     }
