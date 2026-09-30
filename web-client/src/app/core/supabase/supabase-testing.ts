@@ -86,6 +86,9 @@ export function createFakeSupabaseClient(
       getUser: async () => ({ data: { user: authUser as User }, error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
     },
+    functions: {
+      invoke: async () => ({ data: null, error: null }),
+    },
     channel: () => ({
       on: () => ({ subscribe: () => ({}) }),
     }),

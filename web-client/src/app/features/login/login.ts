@@ -32,7 +32,10 @@ export class Login {
       return;
     }
 
-    const { email, password } = this.form.getRawValue();
+    const { email: rawEmail, password } = this.form.getRawValue();
+    const email = rawEmail.trim().includes('@')
+      ? rawEmail.trim()
+      : `${rawEmail.trim()}@sportlink.local`;
     const result = await this.authService.login(email, password);
 
     if (!result.success) {
@@ -42,6 +45,19 @@ export class Login {
 
     this.errorMessage.set(null);
     await Promise.all([this.playersService.loadAthletes(), this.calendarService.loadTemplates()]);
+
+    const user = this.authService.user();
+    if (user?.role === 'player' && user.athleteId !== undefined) {
+      if (this.playersService.isSetupPending(user.athleteId)) {
+        void this.router.navigate(['/primer-ingreso']);
+        return;
+      }
+      if (this.playersService.isWelcomeFormPending(user.athleteId)) {
+        void this.router.navigate(['/bienvenida']);
+        return;
+      }
+    }
+
     void this.router.navigate(['/home']);
   }
 }

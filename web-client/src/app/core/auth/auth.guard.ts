@@ -43,14 +43,53 @@ export const welcomeFormGuard: CanActivateFn = () => {
   return true;
 };
 
-/** Protege la ruta de bienvenida: solo la ve un jugador con el formulario pendiente. */
+/** Protege la ruta de bienvenida: solo la ve un jugador con la cuenta activada y el formulario pendiente. */
 export const pendingWelcomeFormGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const playersService = inject(PlayersService);
   const router = inject(Router);
 
   const user = authService.user();
-  if (user?.role === 'player' && user.athleteId !== undefined && playersService.isWelcomeFormPending(user.athleteId)) {
+  if (user?.role !== 'player' || user.athleteId === undefined) {
+    return router.createUrlTree(['/home']);
+  }
+
+  if (playersService.isSetupPending(user.athleteId)) {
+    return router.createUrlTree(['/primer-ingreso']);
+  }
+
+  if (playersService.isWelcomeFormPending(user.athleteId)) {
+    return true;
+  }
+
+  return router.createUrlTree(['/home']);
+};
+
+/**
+ * Obliga a un jugador con el primer login pendiente a completar la pantalla de
+ * activación de cuenta antes de acceder al resto de la app.
+ */
+export const firstLoginGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const playersService = inject(PlayersService);
+  const router = inject(Router);
+
+  const user = authService.user();
+  if (user?.role === 'player' && user.athleteId !== undefined && playersService.isSetupPending(user.athleteId)) {
+    return router.createUrlTree(['/primer-ingreso']);
+  }
+
+  return true;
+};
+
+/** Protege la ruta de primer ingreso: solo la ve un jugador con la activación pendiente. */
+export const pendingFirstLoginGuard: CanActivateFn = () => {
+  const authService = inject(AuthService);
+  const playersService = inject(PlayersService);
+  const router = inject(Router);
+
+  const user = authService.user();
+  if (user?.role === 'player' && user.athleteId !== undefined && playersService.isSetupPending(user.athleteId)) {
     return true;
   }
 

@@ -11,7 +11,7 @@ export function buildWhatsappLink(athlete: Athlete): string {
   const message =
     `¡Hola ${athlete.firstName}! El entrenador te ha dado de alta en SportLink. ` +
     `Tu usuario es: ${athlete.username} y tu clave temporal es: ${athlete.tempPassword}. ` +
-    `Ingresa en: https://sportlink.app para gestionar tus asistencias.`;
+    `Ingresa en: https://cteves1.github.io/sportlink/login para gestionar tus asistencias.`;
 
   return `https://wa.me/${digitsOnly}?text=${encodeURIComponent(message)}`;
 }

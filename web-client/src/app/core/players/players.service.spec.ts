@@ -58,6 +58,8 @@ function dbAthleteFromInput(id: number, input: NewAthleteInput, overrides: Recor
     attendance_rate: 0,
     username: 'ana.gomez',
     temp_password: 'TM-2026-ABCD',
+    email: null,
+    setup_completed: false,
     welcome_form_completed: false,
     welcome_form_answers: [] as unknown[],
     created_at: '2026-01-01T00:00:00Z',

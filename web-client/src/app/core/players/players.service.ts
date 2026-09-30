@@ -167,11 +167,14 @@ export interface Athlete extends PlayingProfile {
   status: 'activo' | 'inactivo';
   playerType: 'regular' | 'invitado';
   phone: string;
+  email: string | null;
   username: string;
   tempPassword: string;
   attendance: number;
   birthDate: Date;
   dominantHand: 'derecha' | 'izquierda';
+  /** Indica si el jugador ya completó el flujo inicial de email + contraseña. */
+  setupCompleted: boolean;
   /** Indica si el jugador ya completó el formulario de bienvenida (objetivos/motivación/experiencia). */
   welcomeFormCompleted: boolean;
   welcomeForm: WelcomeFormAnswers | null;
@@ -223,6 +226,7 @@ interface DbAthlete {
   status: Athlete['status'];
   player_type: Athlete['playerType'];
   phone: string;
+  email: string | null;
   username: string;
   temp_password: string;
   attendance_rate: number;
@@ -236,6 +240,7 @@ interface DbAthlete {
   club: string | null;
   specific_goal: string | null;
   training_days: Weekday[];
+  setup_completed: boolean;
   welcome_form_completed: boolean;
   welcome_form_answers: DbWelcomeForm[] | null;
 }
@@ -272,11 +277,13 @@ function fromDbRow(row: DbAthlete): Athlete {
     status: row.status,
     playerType: row.player_type,
     phone: row.phone,
+    email: row.email,
     username: row.username,
     tempPassword: row.temp_password,
     attendance: Number(row.attendance_rate),
     birthDate: new Date(row.birth_date),
     dominantHand: row.dominant_hand,
+    setupCompleted: row.setup_completed,
     level: row.level,
     paddleGrip: row.paddle_grip,
     rubberForehand: row.rubber_forehand,
@@ -301,11 +308,13 @@ function athleteFromInput(id: number, input: NewAthleteInput, username: string, 
     status: 'activo',
     player_type: input.playerType,
     phone: input.phone,
+    email: null,
     username,
     temp_password: tempPassword,
     attendance_rate: 0,
     birth_date: dateKey(input.birthDate),
     dominant_hand: input.dominantHand,
+    setup_completed: false,
     level: profile.level,
     paddle_grip: profile.paddle_grip,
     rubber_forehand: profile.rubber_forehand,
@@ -430,6 +439,26 @@ export class PlayersService {
 
     const athlete = athleteFromInput(inserted.id, input, username, tempPassword);
     this._athletes.update((list) => [...list, athlete].sort((a, b) => a.lastName.localeCompare(b.lastName)));
+
+    // Crea la cuenta de autenticación del jugador a través de una Edge Function
+    // que usa la service_role key (no se expone en el frontend).
+    try {
+      const { error: fnError } = await this.supabase.functions.invoke('create-player-user', {
+        body: {
+          athlete_id: athlete.id,
+          username: athlete.username,
+          temp_password: athlete.tempPassword,
+          first_name: athlete.firstName,
+          last_name: athlete.lastName,
+        },
+      });
+      if (fnError) {
+        console.error('Error creando usuario de auth:', fnError);
+      }
+    } catch (err) {
+      console.error('Error invocando create-player-user:', err);
+    }
+
     return athlete;
   }
 
@@ -500,6 +529,29 @@ export class PlayersService {
 
     this._athletes.update((list) =>
       list.map((a) => (a.id === athleteId ? { ...a, status: nextStatus } : a)),
+    );
+  }
+
+  /** True si el jugador existe y todavía no completó el primer login. */
+  isSetupPending(athleteId: number): boolean {
+    const athlete = this._athletes().find((a) => a.id === athleteId);
+    return athlete !== undefined && !athlete.setupCompleted;
+  }
+
+  /** Marca el primer login como completado y guarda el email del jugador. */
+  async completeSetup(athleteId: number, email: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('athletes')
+      .update({ email, setup_completed: true })
+      .eq('id', athleteId);
+
+    if (error) {
+      console.error('Error completando primer login:', error);
+      return;
+    }
+
+    this._athletes.update((list) =>
+      list.map((a) => (a.id === athleteId ? { ...a, email, setupCompleted: true } : a)),
     );
   }
 

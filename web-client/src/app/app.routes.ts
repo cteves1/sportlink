@@ -4,12 +4,22 @@ import {
   adminGuard,
   welcomeFormGuard,
   pendingWelcomeFormGuard,
+  firstLoginGuard,
+  pendingFirstLoginGuard,
 } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('./features/login/login').then((m) => m.Login),
+  },
+  {
+    // Activación de cuenta del jugador en su primer login:
+    // pantalla completa, fuera del Shell, obligatoria antes de acceder al resto de la app.
+    path: 'primer-ingreso',
+    loadComponent: () =>
+      import('./features/first-login/first-login').then((m) => m.FirstLogin),
+    canActivate: [authGuard, pendingFirstLoginGuard],
   },
   {
     // Formulario de bienvenida (objetivos/motivación/experiencia) del jugador recién dado de alta:
@@ -29,7 +39,7 @@ export const routes: Routes = [
   {
     path: '',
     loadComponent: () => import('./layout/shell/shell').then((m) => m.Shell),
-    canActivate: [authGuard, welcomeFormGuard],
+    canActivate: [authGuard, firstLoginGuard, welcomeFormGuard],
     children: [
       {
         path: 'home',
