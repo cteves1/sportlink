@@ -16,7 +16,6 @@ import {
   LucideClipboardList,
   LucideMessageCircle,
   LucidePencil,
-  LucideRotateCcw,
   LucideTrash2,
   LucideUserPlus,
   LucideX,
@@ -43,7 +42,6 @@ export type { Athlete, Category };
 
 type StatusFilter = 'todos' | 'activo' | 'inactivo';
 type CategoryFilter = 'todas' | Category;
-type TabMode = 'activos' | 'eliminados';
 
 @Component({
   selector: 'app-jugadores',
@@ -68,7 +66,6 @@ type TabMode = 'activos' | 'eliminados';
     LucideMessageCircle,
     LucidePencil,
     LucideTrash2,
-    LucideRotateCcw,
     LucideX,
   ],
   templateUrl: './jugadores.html',
@@ -90,7 +87,6 @@ export class Jugadores implements AfterViewInit {
   protected readonly isElite = isEliteCategory;
   protected readonly buildWhatsappLink = buildWhatsappLink;
 
-  protected readonly tabMode = signal<TabMode>('activos');
   protected readonly searchTerm = signal('');
   protected readonly selectedCategory = signal<CategoryFilter>('todas');
   protected readonly statusFilter = signal<StatusFilter>('todos');
@@ -119,14 +115,11 @@ export class Jugadores implements AfterViewInit {
 
   protected readonly filteredAthletes = computed(() => {
     const athletes = this.playersService.athletes();
-    const tab = this.tabMode();
     const category = this.selectedCategory();
     const status = this.statusFilter();
     const term = this.searchTerm().trim().toLowerCase();
 
     return athletes.filter((athlete) => {
-      const inTab = tab === 'activos' ? !athlete.deletedAt : !!athlete.deletedAt;
-      if (!inTab) return false;
       if (category !== 'todas' && athlete.category !== category) return false;
       if (status !== 'todos' && athlete.status !== status) return false;
       if (term) {
@@ -141,10 +134,6 @@ export class Jugadores implements AfterViewInit {
   });
 
   protected readonly resultsCount = computed(() => this.filteredAthletes().length);
-  protected readonly totalCount = computed(() => this.playersService.athletes().filter((a) => !a.deletedAt).length);
-  protected readonly deletedCount = computed(
-    () => this.playersService.athletes().filter((a) => !!a.deletedAt).length,
-  );
 
   protected readonly editingAthlete = computed(() => {
     const id = this.editingAthleteId();
@@ -175,11 +164,6 @@ export class Jugadores implements AfterViewInit {
     this.statusFilter.set(status);
   }
 
-  protected setTab(mode: TabMode): void {
-    this.tabMode.set(mode);
-    this.expandedId.set(null);
-  }
-
   protected toggleExpand(athleteId: number): void {
     this.expandedId.update((current) => (current === athleteId ? null : athleteId));
   }
@@ -207,10 +191,6 @@ export class Jugadores implements AfterViewInit {
     await this.playersService.deleteAthlete(athleteId);
   }
 
-  protected async restoreAthlete(athleteId: number): Promise<void> {
-    await this.playersService.restoreAthlete(athleteId);
-  }
-
   protected async togglePaid(athleteId: number): Promise<void> {
     await this.playersService.togglePaid(athleteId);
   }
@@ -224,16 +204,16 @@ export class Jugadores implements AfterViewInit {
     sendWhatsapp(athlete);
   }
 
-  protected levelLabel(athlete: Athlete): string {
-    return this.levelLabels[athlete.level];
-  }
-
   protected formatBirthDate(date: Date): string {
     return new Intl.DateTimeFormat('es-ES', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     }).format(date);
+  }
+
+  protected levelLabel(athlete: Athlete): string {
+    return this.levelLabels[athlete.level];
   }
 
   private static readonly MAIN_GOAL_LABELS: Record<WelcomeFormAnswers['mainGoal'], string> = {

@@ -16,32 +16,6 @@
     </button>
   </header>
 
-  <!-- Pestañas: Activos / Eliminados -->
-  <div class="flex items-center gap-2 rounded-full border border-gray-200 bg-white p-1 shadow-sm">
-    <button
-      type="button"
-      (click)="setTab('activos')"
-      class="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium"
-      [class.bg-brand-600]="tabMode() === 'activos'"
-      [class.text-white]="tabMode() === 'activos'"
-      [class.text-gray-600]="tabMode() !== 'activos'"
-    >
-      Activos
-      <span class="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{{ totalCount() }}</span>
-    </button>
-    <button
-      type="button"
-      (click)="setTab('eliminados')"
-      class="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium"
-      [class.bg-brand-600]="tabMode() === 'eliminados'"
-      [class.text-white]="tabMode() === 'eliminados'"
-      [class.text-gray-600]="tabMode() !== 'eliminados'"
-    >
-      Eliminados
-      <span class="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{{ deletedCount() }}</span>
-    </button>
-  </div>
-
   <!-- Filtros -->
   <section class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
     <div class="flex flex-col gap-3 md:flex-row md:items-end">
@@ -170,7 +144,7 @@
             <button
               type="button"
               (click)="togglePaid(athlete.id); $event.stopPropagation()"
-              class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
               [class.bg-green-600]="athlete.paid"
               [class.text-white]="athlete.paid"
               [class.bg-red-100]="!athlete.paid"
@@ -256,27 +230,15 @@
                 <svg lucideMessageCircle [size]="16" class="block"></svg>
               </a>
 
-              @if (tabMode() === 'activos') {
-                <button
-                  type="button"
-                  mat-icon-button
-                  (click)="deleteAthlete(athlete.id); $event.stopPropagation()"
-                  class="inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
-                  title="Eliminar jugador"
-                >
-                  <svg lucideTrash2 [size]="16" class="block"></svg>
-                </button>
-              } @else {
-                <button
-                  type="button"
-                  mat-icon-button
-                  (click)="restoreAthlete(athlete.id); $event.stopPropagation()"
-                  class="inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-600 hover:bg-blue-50"
-                  title="Restaurar jugador"
-                >
-                  <svg lucideRotateCcw [size]="16" class="block"></svg>
-                </button>
-              }
+              <button
+                type="button"
+                mat-icon-button
+                (click)="deleteAthlete(athlete.id); $event.stopPropagation()"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
+                title="Eliminar jugador"
+              >
+                <svg lucideTrash2 [size]="16" class="block"></svg>
+              </button>
             </div>
           </td>
         </ng-container>
