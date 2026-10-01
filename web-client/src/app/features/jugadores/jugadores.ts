@@ -1,13 +1,17 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
+  LucideCheck,
   LucideChevronDown,
   LucideChevronUp,
   LucideClipboardList,
+  LucideDollarSign,
   LucideMessageCircle,
   LucidePencil,
   LucideSearch,
   LucideUserPlus,
+  LucideUsers,
+  LucideX,
 } from '@lucide/angular';
 import {
   Athlete,
@@ -30,6 +34,7 @@ import { PlayerFormModal } from '../../shared/player-form-modal/player-form-moda
 export type { Athlete, Category };
 
 type StatusFilter = 'todos' | 'activo' | 'inactivo';
+type ViewMode = 'lista' | 'pagos';
 
 @Component({
   selector: 'app-jugadores',
@@ -44,6 +49,10 @@ type StatusFilter = 'todos' | 'activo' | 'inactivo';
     LucideClipboardList,
     LucideMessageCircle,
     LucidePencil,
+    LucideUsers,
+    LucideDollarSign,
+    LucideCheck,
+    LucideX,
   ],
   templateUrl: './jugadores.html',
 })
@@ -66,6 +75,7 @@ export class Jugadores {
   protected readonly searchTerm = signal('');
   protected readonly selectedCategory = signal<Category | null>(null);
   protected readonly statusFilter = signal<StatusFilter>('todos');
+  protected readonly viewMode = signal<ViewMode>('lista');
   protected readonly expandedId = signal<number | null>(null);
   protected readonly isFormOpen = signal(false);
   protected readonly editingAthleteId = signal<number | null>(null);
@@ -104,6 +114,18 @@ export class Jugadores {
 
   protected selectStatusFilter(status: StatusFilter): void {
     this.statusFilter.set(status);
+  }
+
+  protected setViewMode(mode: ViewMode): void {
+    this.viewMode.set(mode);
+  }
+
+  protected async togglePaid(athleteId: number): Promise<void> {
+    await this.playersService.togglePaid(athleteId);
+  }
+
+  protected async updateDebt(athleteId: number, value: number): Promise<void> {
+    await this.playersService.updateDebt(athleteId, Number.isFinite(value) && value >= 0 ? value : 0);
   }
 
   protected toggleExpand(athleteId: number): void {
