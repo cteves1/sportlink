@@ -10,6 +10,10 @@ export interface AuthUser {
   role: AppRole;
   /** Id del atleta en Supabase, presente solo cuando role === 'player'. */
   athleteId?: number;
+  /** Fecha ISO en que se creó la cuenta en Supabase Auth. */
+  memberSince: string;
+  /** Nivel de suscripción del usuario (se lee de user_metadata; por defecto 'Estándar'). */
+  subscriptionTier: string;
 }
 
 export interface LoginResult {
@@ -36,6 +40,8 @@ export class AuthService {
       email: authUser.email ?? '',
       role,
       athleteId: profile.athlete_id ?? undefined,
+      memberSince: authUser.created_at,
+      subscriptionTier: (authUser.user_metadata?.['subscription_tier'] as string | undefined) ?? 'Estándar',
     };
   });
 

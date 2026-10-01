@@ -77,6 +77,10 @@ export const routes: Routes = [
         canActivate: [adminGuard],
       },
       {
+        path: 'perfil',
+        loadComponent: () => import('./features/perfil/perfil').then((m) => m.Perfil),
+      },
+      {
         path: 'ajustes',
         loadComponent: () => import('./features/ajustes/ajustes').then((m) => m.Ajustes),
       },

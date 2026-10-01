@@ -212,10 +212,7 @@ export class Home implements OnInit {
   }
 
   protected goToMyProfile(): void {
-    const athleteId = this.authService.user()?.athleteId;
-    if (athleteId !== undefined) {
-      void this.router.navigate(['/jugadores', athleteId]);
-    }
+    void this.router.navigate(['/perfil']);
   }
 
   // ------------------------------------------------------------------
