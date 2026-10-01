@@ -1,16 +1,24 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSort, MatSortModule } from '@angular/material/sort';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import {
   LucideCheck,
   LucideChevronDown,
   LucideChevronUp,
   LucideClipboardList,
-  LucideDollarSign,
   LucideMessageCircle,
   LucidePencil,
-  LucideSearch,
+  LucideRotateCcw,
+  LucideTrash2,
   LucideUserPlus,
-  LucideUsers,
   LucideX,
 } from '@lucide/angular';
 import {
@@ -34,106 +42,146 @@ import { PlayerFormModal } from '../../shared/player-form-modal/player-form-moda
 export type { Athlete, Category };
 
 type StatusFilter = 'todos' | 'activo' | 'inactivo';
-type ViewMode = 'lista' | 'pagos';
+type CategoryFilter = 'todas' | Category;
+type TabMode = 'activos' | 'eliminados';
 
 @Component({
   selector: 'app-jugadores',
   standalone: true,
   imports: [
     RouterLink,
+    FormsModule,
     PlayerFormModal,
-    LucideSearch,
+    MatTableModule,
+    MatSortModule,
+    MatPaginatorModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatIconModule,
     LucideUserPlus,
+    LucideCheck,
     LucideChevronDown,
     LucideChevronUp,
     LucideClipboardList,
     LucideMessageCircle,
     LucidePencil,
-    LucideUsers,
-    LucideDollarSign,
-    LucideCheck,
+    LucideTrash2,
+    LucideRotateCcw,
     LucideX,
   ],
   templateUrl: './jugadores.html',
 })
-export class Jugadores {
+export class Jugadores implements AfterViewInit {
   private readonly playersService = inject(PlayersService);
 
-  /** Categorías disponibles para los chips de filtro, de Atleta Elite a Infantil. */
-  protected readonly categories = CATEGORY_OPTIONS;
+  /** Categorías disponibles para filtrar, incluyendo la opción "Todas". */
+  protected readonly categories: CategoryFilter[] = ['todas', ...CATEGORY_OPTIONS];
+  protected readonly statusFilters: StatusFilter[] = ['todos', 'activo', 'inactivo'];
 
   protected readonly categoryLabel = categoryLabel;
   protected readonly categoryBadgeClasses = categoryBadgeClasses;
+  protected readonly levelLabels = PLAYER_LEVEL_LABELS;
   protected readonly paddleGripLabel = paddleGripLabel;
   protected readonly playingStyleLabel = playingStyleLabel;
   protected readonly rubberTypeLabel = rubberTypeLabel;
   protected readonly trainingDaysLabel = trainingDaysLabel;
-  protected readonly levelLabels = PLAYER_LEVEL_LABELS;
+  protected readonly isElite = isEliteCategory;
+  protected readonly buildWhatsappLink = buildWhatsappLink;
 
-  protected readonly athletes = this.playersService.athletes;
-
+  protected readonly tabMode = signal<TabMode>('activos');
   protected readonly searchTerm = signal('');
-  protected readonly selectedCategory = signal<Category | null>(null);
+  protected readonly selectedCategory = signal<CategoryFilter>('todas');
   protected readonly statusFilter = signal<StatusFilter>('todos');
-  protected readonly viewMode = signal<ViewMode>('lista');
   protected readonly expandedId = signal<number | null>(null);
   protected readonly isFormOpen = signal(false);
   protected readonly editingAthleteId = signal<number | null>(null);
 
-  /** Jugador que el modal debe precargar; `null` significa alta de un jugador nuevo. */
-  protected readonly editingAthlete = computed(() => {
-    const id = this.editingAthleteId();
-    if (id === null) return null;
-    return this.athletes().find((athlete) => athlete.id === id) ?? null;
-  });
+  protected readonly displayedColumns = [
+    'fullName',
+    'category',
+    'status',
+    'playerType',
+    'attendance',
+    'paid',
+    'debt',
+    'actions',
+  ];
+
+  protected readonly dataSource = new MatTableDataSource<Athlete>([]);
+
+  @ViewChild(MatSort) sort!: MatSort;
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+
+  /** Renderiza una fila de detalle por cada fila de datos para permitir la expansión. */
+  protected readonly isExpansionDetailRow = (): boolean => true;
 
   protected readonly filteredAthletes = computed(() => {
+    const athletes = this.playersService.athletes();
+    const tab = this.tabMode();
     const category = this.selectedCategory();
-    const term = this.searchTerm().trim().toLowerCase();
     const status = this.statusFilter();
+    const term = this.searchTerm().trim().toLowerCase();
 
-    return this.athletes().filter((athlete) => {
-      const matchesCategory = category === null || athlete.category === category;
-      const matchesStatus = status === 'todos' || athlete.status === status;
-      const fullName = `${athlete.firstName} ${athlete.lastName}`.toLowerCase();
-      const matchesSearch = term === '' || fullName.includes(term);
-      return matchesCategory && matchesStatus && matchesSearch;
+    return athletes.filter((athlete) => {
+      const inTab = tab === 'activos' ? !athlete.deletedAt : !!athlete.deletedAt;
+      if (!inTab) return false;
+      if (category !== 'todas' && athlete.category !== category) return false;
+      if (status !== 'todos' && athlete.status !== status) return false;
+      if (term) {
+        const fullName = `${athlete.firstName} ${athlete.lastName}`.toLowerCase();
+        const matchesName = fullName.includes(term);
+        const matchesUsername = athlete.username.toLowerCase().includes(term);
+        const matchesPhone = athlete.phone.includes(term);
+        if (!matchesName && !matchesUsername && !matchesPhone) return false;
+      }
+      return true;
     });
   });
 
   protected readonly resultsCount = computed(() => this.filteredAthletes().length);
-  protected readonly totalCount = computed(() => this.athletes().length);
+  protected readonly totalCount = computed(() => this.playersService.athletes().filter((a) => !a.deletedAt).length);
+  protected readonly deletedCount = computed(
+    () => this.playersService.athletes().filter((a) => !!a.deletedAt).length,
+  );
 
-  protected onSearch(value: string): void {
-    this.searchTerm.set(value);
+  protected readonly editingAthlete = computed(() => {
+    const id = this.editingAthleteId();
+    if (id === null) return null;
+    return this.playersService.athletes().find((athlete) => athlete.id === id) ?? null;
+  });
+
+  constructor() {
+    effect(() => {
+      this.dataSource.data = this.filteredAthletes();
+    });
   }
 
-  protected selectCategory(category: Category | null): void {
+  ngAfterViewInit(): void {
+    this.dataSource.sort = this.sort;
+    this.dataSource.paginator = this.paginator;
+  }
+
+  protected applySearch(event: Event): void {
+    this.searchTerm.set((event.target as HTMLInputElement).value);
+  }
+
+  protected selectCategory(category: CategoryFilter): void {
     this.selectedCategory.set(category);
   }
 
-  protected selectStatusFilter(status: StatusFilter): void {
+  protected selectStatus(status: StatusFilter): void {
     this.statusFilter.set(status);
   }
 
-  protected setViewMode(mode: ViewMode): void {
-    this.viewMode.set(mode);
-  }
-
-  protected async togglePaid(athleteId: number): Promise<void> {
-    await this.playersService.togglePaid(athleteId);
-  }
-
-  protected async updateDebt(athleteId: number, value: number): Promise<void> {
-    await this.playersService.updateDebt(athleteId, Number.isFinite(value) && value >= 0 ? value : 0);
+  protected setTab(mode: TabMode): void {
+    this.tabMode.set(mode);
+    this.expandedId.set(null);
   }
 
   protected toggleExpand(athleteId: number): void {
     this.expandedId.update((current) => (current === athleteId ? null : athleteId));
-  }
-
-  protected async toggleStatus(athleteId: number): Promise<void> {
-    await this.playersService.toggleStatus(athleteId);
   }
 
   protected openForm(): void {
@@ -141,7 +189,6 @@ export class Jugadores {
     this.isFormOpen.set(true);
   }
 
-  /** Abre el mismo modal precargado con los datos del jugador, para editarlo sin regenerar usuario/clave. */
   protected openEditForm(athlete: Athlete): void {
     this.editingAthleteId.set(athlete.id);
     this.isFormOpen.set(true);
@@ -152,17 +199,33 @@ export class Jugadores {
     this.editingAthleteId.set(null);
   }
 
-  protected buildWhatsappLink(athlete: Athlete): string {
-    return buildWhatsappLink(athlete);
+  protected async toggleStatus(athleteId: number): Promise<void> {
+    await this.playersService.toggleStatus(athleteId);
+  }
+
+  protected async deleteAthlete(athleteId: number): Promise<void> {
+    await this.playersService.deleteAthlete(athleteId);
+  }
+
+  protected async restoreAthlete(athleteId: number): Promise<void> {
+    await this.playersService.restoreAthlete(athleteId);
+  }
+
+  protected async togglePaid(athleteId: number): Promise<void> {
+    await this.playersService.togglePaid(athleteId);
+  }
+
+  protected async updateDebt(athleteId: number, value: number): Promise<void> {
+    const debt = Number.isFinite(value) && value >= 0 ? value : 0;
+    await this.playersService.updateDebt(athleteId, debt);
   }
 
   protected sendWhatsapp(athlete: Athlete): void {
     sendWhatsapp(athlete);
   }
 
-  /** Los atletas de Atleta Elite y categoría 1 tienen ficha de seguimiento de alto rendimiento. */
-  protected isElite(athlete: Athlete): boolean {
-    return isEliteCategory(athlete.category);
+  protected levelLabel(athlete: Athlete): string {
+    return this.levelLabels[athlete.level];
   }
 
   protected formatBirthDate(date: Date): string {

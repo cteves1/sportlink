@@ -183,6 +183,8 @@ export interface Athlete extends PlayingProfile {
   paid: boolean;
   /** Deuda pendiente en la moneda del club (ej. ARS). */
   debt: number;
+  /** Fecha de eliminación lógica; null significa activo. */
+  deletedAt: Date | null;
 }
 
 export type NewAthleteInput = Pick<
@@ -250,6 +252,7 @@ interface DbAthlete {
   welcome_form_answers: DbWelcomeForm[] | null;
   paid: boolean | null;
   debt: number | null;
+  deleted_at: string | null;
 }
 
 /** Normaliza un texto quitando tildes/espacios y pasándolo a minúsculas, para armar usernames. */
@@ -303,6 +306,7 @@ function fromDbRow(row: DbAthlete): Athlete {
     welcomeForm: welcomeAnswers ? fromDbWelcomeForm(welcomeAnswers) : null,
     paid: row.paid ?? false,
     debt: row.debt ?? 0,
+    deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
   };
 }
 
@@ -336,6 +340,7 @@ function athleteFromInput(id: number, input: NewAthleteInput, username: string, 
     welcome_form_answers: [],
     paid: false,
     debt: 0,
+    deleted_at: null,
   };
   return fromDbRow(row);
 }
@@ -592,6 +597,47 @@ export class PlayersService {
 
     this._athletes.update((list) =>
       list.map((a) => (a.id === athleteId ? { ...a, debt } : a)),
+    );
+  }
+
+  /**
+   * Marca un jugador como eliminado lógicamente. Requiere la columna `deleted_at`
+   * en la tabla athletes.
+   */
+  async deleteAthlete(athleteId: number): Promise<void> {
+    const deletedAt = new Date().toISOString();
+    const { error } = await this.supabase
+      .from('athletes')
+      .update({ deleted_at: deletedAt })
+      .eq('id', athleteId);
+
+    if (error) {
+      console.error('Error eliminando atleta:', error);
+      return;
+    }
+
+    this._athletes.update((list) =>
+      list.map((a) => (a.id === athleteId ? { ...a, deletedAt: new Date(deletedAt) } : a)),
+    );
+  }
+
+  /**
+   * Restaura un jugador previamente eliminado. Requiere la columna `deleted_at`
+   * en la tabla athletes.
+   */
+  async restoreAthlete(athleteId: number): Promise<void> {
+    const { error } = await this.supabase
+      .from('athletes')
+      .update({ deleted_at: null })
+      .eq('id', athleteId);
+
+    if (error) {
+      console.error('Error restaurando atleta:', error);
+      return;
+    }
+
+    this._athletes.update((list) =>
+      list.map((a) => (a.id === athleteId ? { ...a, deletedAt: null } : a)),
     );
   }
 

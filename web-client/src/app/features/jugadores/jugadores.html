@@ -3,396 +3,455 @@
   <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div>
       <h1 class="text-2xl font-semibold text-gray-900">Jugadores</h1>
-      <p class="text-sm text-gray-500">{{ resultsCount() }} de {{ totalCount() }} jugadores</p>
+      <p class="text-sm text-gray-500">{{ resultsCount() }} resultados</p>
     </div>
 
-    <div class="flex items-center gap-2 rounded-full border border-gray-200 bg-white p-1 shadow-sm">
-      <button
-        type="button"
-        (click)="setViewMode('lista')"
-        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
-        [class.bg-brand-600]="viewMode() === 'lista'"
-        [class.text-white]="viewMode() === 'lista'"
-        [class.text-gray-600]="viewMode() !== 'lista'"
-      >
-        <svg lucideUsers [size]="14" class="block"></svg>
-        Lista de jugadores
-      </button>
-      <button
-        type="button"
-        (click)="setViewMode('pagos')"
-        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
-        [class.bg-brand-600]="viewMode() === 'pagos'"
-        [class.text-white]="viewMode() === 'pagos'"
-        [class.text-gray-600]="viewMode() !== 'pagos'"
-      >
-        <svg lucideDollarSign [size]="14" class="block"></svg>
-        Pagos
-      </button>
-    </div>
+    <button
+      type="button"
+      (click)="openForm()"
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+    >
+      <svg lucideUserPlus [size]="18" class="block"></svg>
+      ➕ Registrar Jugador
+    </button>
   </header>
 
-  <!-- Barra de control: búsqueda, filtros y acción de registro -->
+  <!-- Pestañas: Activos / Eliminados -->
+  <div class="flex items-center gap-2 rounded-full border border-gray-200 bg-white p-1 shadow-sm">
+    <button
+      type="button"
+      (click)="setTab('activos')"
+      class="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium"
+      [class.bg-brand-600]="tabMode() === 'activos'"
+      [class.text-white]="tabMode() === 'activos'"
+      [class.text-gray-600]="tabMode() !== 'activos'"
+    >
+      Activos
+      <span class="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{{ totalCount() }}</span>
+    </button>
+    <button
+      type="button"
+      (click)="setTab('eliminados')"
+      class="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium"
+      [class.bg-brand-600]="tabMode() === 'eliminados'"
+      [class.text-white]="tabMode() === 'eliminados'"
+      [class.text-gray-600]="tabMode() !== 'eliminados'"
+    >
+      Eliminados
+      <span class="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{{ deletedCount() }}</span>
+    </button>
+  </div>
+
+  <!-- Filtros -->
   <section class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <div class="relative flex-1">
-        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
-          <svg lucideSearch [size]="18" class="block"></svg>
-        </span>
+    <div class="flex flex-col gap-3 md:flex-row md:items-end">
+      <mat-form-field class="w-full md:flex-1" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Buscar</mat-label>
         <input
+          matInput
           type="text"
           [value]="searchTerm()"
-          (input)="onSearch($any($event.target).value)"
-          placeholder="Buscar por nombre o apellido..."
-          class="w-full rounded-md border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+          (input)="applySearch($event)"
+          placeholder="Nombre, apellido, usuario o teléfono"
         />
-      </div>
+      </mat-form-field>
 
-      <button
-        type="button"
-        (click)="openForm()"
-        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
-      >
-        <svg lucideUserPlus [size]="18" class="block"></svg>
-        ➕ Registrar Jugador
-      </button>
-    </div>
+      <mat-form-field class="w-full md:w-48" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Categoría</mat-label>
+        <mat-select [value]="selectedCategory()" (selectionChange)="selectCategory($event.value)">
+          @for (cat of categories; track cat) {
+            <mat-option [value]="cat">
+              @if (cat === 'todas') {
+                Todas
+              } @else {
+                {{ categoryLabel(cat) }}
+              }
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <div class="flex gap-2 overflow-x-auto pb-1">
-      <button
-        type="button"
-        (click)="selectCategory(null)"
-        class="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium"
-        [class.bg-brand-600]="selectedCategory() === null"
-        [class.text-white]="selectedCategory() === null"
-        [class.bg-gray-100]="selectedCategory() !== null"
-        [class.text-gray-700]="selectedCategory() !== null"
-      >
-        Todos
-      </button>
-      @for (category of categories; track category) {
-        <button
-          type="button"
-          (click)="selectCategory(category)"
-          class="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium"
-          [class.bg-brand-600]="selectedCategory() === category"
-          [class.text-white]="selectedCategory() === category"
-          [class.bg-gray-100]="selectedCategory() !== category"
-          [class.text-gray-700]="selectedCategory() !== category"
-        >
-          {{ categoryLabel(category) }}
-        </button>
-      }
-    </div>
-
-    <!-- Filtro rápido por estado -->
-    <div class="flex gap-2 border-t border-gray-100 pt-3">
-      <button
-        type="button"
-        (click)="selectStatusFilter('todos')"
-        class="rounded-md px-3 py-1.5 text-xs font-semibold"
-        [class.bg-gray-800]="statusFilter() === 'todos'"
-        [class.text-white]="statusFilter() === 'todos'"
-        [class.bg-gray-100]="statusFilter() !== 'todos'"
-        [class.text-gray-700]="statusFilter() !== 'todos'"
-      >
-        Todos
-      </button>
-      <button
-        type="button"
-        (click)="selectStatusFilter('activo')"
-        class="rounded-md px-3 py-1.5 text-xs font-semibold"
-        [class.bg-green-600]="statusFilter() === 'activo'"
-        [class.text-white]="statusFilter() === 'activo'"
-        [class.bg-gray-100]="statusFilter() !== 'activo'"
-        [class.text-gray-700]="statusFilter() !== 'activo'"
-      >
-        Activos
-      </button>
-      <button
-        type="button"
-        (click)="selectStatusFilter('inactivo')"
-        class="rounded-md px-3 py-1.5 text-xs font-semibold"
-        [class.bg-gray-500]="statusFilter() === 'inactivo'"
-        [class.text-white]="statusFilter() === 'inactivo'"
-        [class.bg-gray-100]="statusFilter() !== 'inactivo'"
-        [class.text-gray-700]="statusFilter() !== 'inactivo'"
-      >
-        Inactivos
-      </button>
+      <mat-form-field class="w-full md:w-44" appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Estado</mat-label>
+        <mat-select [value]="statusFilter()" (selectionChange)="selectStatus($event.value)">
+          @for (status of statusFilters; track status) {
+            <mat-option [value]="status">
+              @switch (status) {
+                @case ('todos') { Todos }
+                @case ('activo') { Activos }
+                @case ('inactivo') { Inactivos }
+              }
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
     </div>
   </section>
 
-  @if (filteredAthletes().length > 0) {
-    @if (viewMode() === 'lista') {
-      <!-- Grid / lista de jugadores -->
-      <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        @for (athlete of filteredAthletes(); track athlete.id) {
-          <div
-            class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-opacity"
-            [class.opacity-60]="athlete.status === 'inactivo'"
-          >
-            <div class="flex items-start justify-between gap-2">
-              <div>
-                @if (isElite(athlete)) {
-                  <a
-                    [routerLink]="['/jugadores', athlete.id]"
-                    class="font-semibold text-brand-700 hover:underline"
-                    title="Abrir ficha de seguimiento"
-                  >
-                    {{ athlete.firstName }} {{ athlete.lastName }}
-                  </a>
-                } @else {
-                  <p class="font-semibold text-gray-900">
-                    {{ athlete.firstName }} {{ athlete.lastName }}
-                  </p>
-                }
-                <div class="mt-1 flex flex-wrap items-center gap-1.5">
-                  <span
-                    class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
-                    [class.bg-green-100]="athlete.status === 'activo'"
-                    [class.text-green-700]="athlete.status === 'activo'"
-                    [class.bg-gray-200]="athlete.status === 'inactivo'"
-                    [class.text-gray-600]="athlete.status === 'inactivo'"
-                  >
-                    <span
-                      class="h-2 w-2 rounded-full"
-                      [class.bg-green-500]="athlete.status === 'activo'"
-                      [class.bg-gray-400]="athlete.status === 'inactivo'"
-                    ></span>
-                    {{ athlete.status === 'activo' ? 'Activo' : 'Inactivo' }}
-                  </span>
-                  <span
-                    class="rounded-full px-2 py-0.5 text-xs font-medium"
-                    [class.bg-blue-100]="athlete.playerType === 'regular'"
-                    [class.text-blue-700]="athlete.playerType === 'regular'"
-                    [class.bg-purple-100]="athlete.playerType === 'invitado'"
-                    [class.text-purple-700]="athlete.playerType === 'invitado'"
-                  >
-                    {{ athlete.playerType === 'regular' ? 'Regular' : 'Invitado' }}
-                  </span>
-                  <span
-                    class="rounded-full px-2 py-0.5 text-xs font-medium"
-                    [class.bg-amber-100]="!athlete.welcomeFormCompleted"
-                    [class.text-amber-800]="!athlete.welcomeFormCompleted"
-                    [class.bg-green-100]="athlete.welcomeFormCompleted"
-                    [class.text-green-700]="athlete.welcomeFormCompleted"
-                  >
-                    {{
-                      athlete.welcomeFormCompleted ? 'Bienvenida completa' : 'Bienvenida pendiente'
-                    }}
-                  </span>
-                </div>
-              </div>
-              <span
-                class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
-                [class]="categoryBadgeClasses(athlete.category)"
-              >
-                {{ categoryLabel(athlete.category) }}
+  <!-- Tabla de jugadores -->
+  <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table mat-table [dataSource]="dataSource" matSort class="w-full">
+        <!-- Nombre -->
+        <ng-container matColumnDef="fullName">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Nombre</th>
+          <td mat-cell *matCellDef="let athlete">
+            <div class="flex flex-col">
+              <span class="font-medium text-gray-900">
+                {{ athlete.firstName }} {{ athlete.lastName }}
               </span>
+              <span class="text-xs text-gray-500">{{ athlete.username }}</span>
             </div>
+          </td>
+        </ng-container>
 
-            <p class="text-sm text-gray-500">
-              Asistencia: <span class="font-medium text-gray-700">{{ athlete.attendance }}%</span>
-            </p>
+        <!-- Categoría -->
+        <ng-container matColumnDef="category">
+          <th mat-header-cell *matHeaderCellDef>Categoría</th>
+          <td mat-cell *matCellDef="let athlete">
+            <span
+              class="rounded-full px-2.5 py-1 text-xs font-semibold"
+              [class]="categoryBadgeClasses(athlete.category)"
+            >
+              {{ categoryLabel(athlete.category) }}
+            </span>
+          </td>
+        </ng-container>
 
-            @if (expandedId() === athlete.id) {
-              <dl
-                class="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600"
-              >
-                <dt class="font-medium text-gray-500">Fecha de nacimiento</dt>
-                <dd class="col-start-1">{{ formatBirthDate(athlete.birthDate) }}</dd>
-                <dt class="font-medium text-gray-500">Mano hábil</dt>
-                <dd class="col-start-1 capitalize">{{ athlete.dominantHand }}</dd>
-                <dt class="font-medium text-gray-500">Nivel</dt>
-                <dd class="col-start-1">{{ levelLabels[athlete.level] }}</dd>
-                <dt class="font-medium text-gray-500">Tipo de paleta</dt>
-                <dd class="col-start-1">{{ paddleGripLabel(athlete.paddleGrip) }}</dd>
-                @if (athlete.level !== 'principiante') {
-                  <dt class="font-medium text-gray-500">Gomas (derecha / revés)</dt>
-                  <dd class="col-start-1">
-                    {{ rubberTypeLabel(athlete.rubberForehand) }} /
-                    {{ rubberTypeLabel(athlete.rubberBackhand) }}
-                  </dd>
-                  <dt class="font-medium text-gray-500">Estilo de juego</dt>
-                  <dd class="col-start-1">{{ playingStyleLabel(athlete.playingStyle) }}</dd>
-                }
-                @if (athlete.level === 'avanzado') {
-                  <dt class="font-medium text-gray-500">Club</dt>
-                  <dd class="col-start-1">{{ athlete.club ?? 'Sin especificar' }}</dd>
-                  <dt class="font-medium text-gray-500">Objetivo en concreto</dt>
-                  <dd class="col-start-1">{{ athlete.specificGoal ?? 'Sin especificar' }}</dd>
-                }
-                <dt class="font-medium text-gray-500">Días de entrenamiento</dt>
-                <dd class="col-start-1">{{ trainingDaysLabel(athlete.trainingDays) }}</dd>
-                <dt class="font-medium text-gray-500">Celular</dt>
-                <dd class="col-start-1">{{ athlete.phone }}</dd>
-                <dt class="font-medium text-gray-500">Usuario</dt>
-                <dd class="col-start-1">{{ athlete.username }}</dd>
-              </dl>
+        <!-- Estado -->
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Estado</th>
+          <td mat-cell *matCellDef="let athlete">
+            <button
+              type="button"
+              (click)="toggleStatus(athlete.id); $event.stopPropagation()"
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+              [class.bg-green-100]="athlete.status === 'activo'"
+              [class.text-green-700]="athlete.status === 'activo'"
+              [class.bg-gray-200]="athlete.status === 'inactivo'"
+              [class.text-gray-600]="athlete.status === 'inactivo'"
+            >
+              <span
+                class="h-2 w-2 rounded-full"
+                [class.bg-green-500]="athlete.status === 'activo'"
+                [class.bg-gray-400]="athlete.status === 'inactivo'"
+              ></span>
+              {{ athlete.status === 'activo' ? 'Activo' : 'Inactivo' }}
+            </button>
+          </td>
+        </ng-container>
 
-              @if (athlete.welcomeForm; as welcomeForm) {
-                <div class="flex flex-col gap-2 rounded-lg bg-brand-50 p-3 text-xs text-gray-700">
-                  <p class="font-semibold text-brand-700">Formulario de bienvenida</p>
-                  <p>
-                    <span class="font-medium text-gray-500">Objetivo principal:</span>
-                    {{ mainGoalLabel(welcomeForm.mainGoal) }}
-                  </p>
-                  <p>
-                    <span class="font-medium text-gray-500">Meta a corto plazo:</span>
-                    {{ welcomeForm.shortTermGoal }}
-                  </p>
-                  <p>
-                    <span class="font-medium text-gray-500">Meta a largo plazo:</span>
-                    {{ welcomeForm.longTermGoal }}
-                  </p>
-                  <p>
-                    <span class="font-medium text-gray-500">Motivación:</span>
-                    {{ welcomeForm.motivation }}
-                  </p>
-                  <p>
-                    <span class="font-medium text-gray-500">Acompañamiento esperado:</span>
-                    {{ welcomeForm.coachSupport }}
-                  </p>
-                  <p>
-                    <span class="font-medium text-gray-500">Experiencia:</span>
-                    {{ yearsPlayingLabel(welcomeForm.yearsPlaying) }} ·
-                    {{
-                      welcomeForm.hasCompeted
-                        ? 'Con experiencia en torneos'
-                        : 'Sin experiencia en torneos'
-                    }}
-                  </p>
-                  <p>
-                    <span class="font-medium text-gray-500">Nivel autopercibido:</span>
-                    {{ selfLevelLabel(welcomeForm.selfPerceivedLevel) }}
-                  </p>
-                </div>
+        <!-- Tipo -->
+        <ng-container matColumnDef="playerType">
+          <th mat-header-cell *matHeaderCellDef>Tipo</th>
+          <td mat-cell *matCellDef="let athlete">
+            <span
+              class="rounded-full px-2 py-0.5 text-xs font-medium"
+              [class.bg-blue-100]="athlete.playerType === 'regular'"
+              [class.text-blue-700]="athlete.playerType === 'regular'"
+              [class.bg-purple-100]="athlete.playerType === 'invitado'"
+              [class.text-purple-700]="athlete.playerType === 'invitado'"
+            >
+              {{ athlete.playerType === 'regular' ? 'Regular' : 'Invitado' }}
+            </span>
+          </td>
+        </ng-container>
+
+        <!-- Asistencia -->
+        <ng-container matColumnDef="attendance">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Asistencia</th>
+          <td mat-cell *matCellDef="let athlete">{{ athlete.attendance }}%</td>
+        </ng-container>
+
+        <!-- Pagado -->
+        <ng-container matColumnDef="paid">
+          <th mat-header-cell *matHeaderCellDef>Pagado</th>
+          <td mat-cell *matCellDef="let athlete">
+            <button
+              type="button"
+              (click)="togglePaid(athlete.id); $event.stopPropagation()"
+              class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
+              [class.bg-green-600]="athlete.paid"
+              [class.text-white]="athlete.paid"
+              [class.bg-red-100]="!athlete.paid"
+              [class.text-red-700]="!athlete.paid"
+            >
+              @if (athlete.paid) {
+                <svg lucideCheck [size]="14" class="block"></svg>
+                Sí
+              } @else {
+                <svg lucideX [size]="14" class="block"></svg>
+                No
               }
-            }
+            </button>
+          </td>
+        </ng-container>
 
-            <div class="flex flex-wrap items-center gap-2">
+        <!-- Deuda -->
+        <ng-container matColumnDef="debt">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Deuda</th>
+          <td mat-cell *matCellDef="let athlete">
+            <div class="flex items-center gap-1">
+              <span class="text-sm text-gray-600">$</span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                [value]="athlete.debt"
+                (change)="updateDebt(athlete.id, +$any($event.target).value); $event.stopPropagation()"
+                class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              />
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Acciones -->
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>Acciones</th>
+          <td mat-cell *matCellDef="let athlete">
+            <div class="flex items-center gap-1">
               @if (isElite(athlete)) {
                 <a
+                  mat-icon-button
                   [routerLink]="['/jugadores', athlete.id]"
-                  class="inline-flex items-center justify-center gap-1.5 rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
+                  title="Ver ficha de seguimiento"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
                 >
-                  <svg lucideClipboardList [size]="14" class="block"></svg>
-                  Ver Ficha de Seguimiento
+                  <svg lucideClipboardList [size]="16" class="block"></svg>
                 </a>
               }
 
               <button
                 type="button"
-                (click)="toggleExpand(athlete.id)"
-                class="inline-flex items-center justify-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                mat-icon-button
+                (click)="toggleExpand(athlete.id); $event.stopPropagation()"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
+                title="Ver detalles"
               >
                 @if (expandedId() === athlete.id) {
-                  <svg lucideChevronUp [size]="14" class="block"></svg>
-                  Ocultar Detalles
+                  <svg lucideChevronUp [size]="16" class="block"></svg>
                 } @else {
-                  <svg lucideChevronDown [size]="14" class="block"></svg>
-                  Ver Perfil / Detalles
+                  <svg lucideChevronDown [size]="16" class="block"></svg>
                 }
               </button>
 
               <button
                 type="button"
-                (click)="openEditForm(athlete)"
-                class="inline-flex items-center justify-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                mat-icon-button
+                (click)="openEditForm(athlete); $event.stopPropagation()"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100"
+                title="Editar jugador"
               >
-                <svg lucidePencil [size]="14" class="block"></svg>
-                Editar
+                <svg lucidePencil [size]="16" class="block"></svg>
               </button>
 
-              <button
-                type="button"
-                (click)="toggleStatus(athlete.id)"
-                class="inline-flex items-center justify-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              <a
+                mat-icon-button
+                [href]="buildWhatsappLink(athlete)"
+                target="_blank"
+                rel="noopener"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-md text-green-600 hover:bg-green-50"
+                title="Enviar WhatsApp"
               >
-                {{ athlete.status === 'activo' ? 'Marcar Inactivo' : 'Marcar Activo' }}
-              </button>
+                <svg lucideMessageCircle [size]="16" class="block"></svg>
+              </a>
 
-              <button
-                type="button"
-                (click)="sendWhatsapp(athlete)"
-                class="inline-flex items-center justify-center gap-1.5 rounded-md bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
-                title="Enviar acceso por WhatsApp"
-              >
-                <svg lucideMessageCircle [size]="14" class="block"></svg>
-                Enviar Acceso
-              </button>
-            </div>
-          </div>
-        }
-      </section>
-    } @else {
-      <!-- Vista de pagos -->
-      <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        @for (athlete of filteredAthletes(); track athlete.id) {
-          <div
-            class="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-            [class.opacity-60]="athlete.status === 'inactivo'"
-          >
-            <div class="flex items-start justify-between gap-2">
-              <div>
-                <p class="font-semibold text-gray-900">
-                  {{ athlete.firstName }} {{ athlete.lastName }}
-                </p>
-                <span
-                  class="mt-1 inline-block shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
-                  [class]="categoryBadgeClasses(athlete.category)"
+              @if (tabMode() === 'activos') {
+                <button
+                  type="button"
+                  mat-icon-button
+                  (click)="deleteAthlete(athlete.id); $event.stopPropagation()"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
+                  title="Eliminar jugador"
                 >
-                  {{ categoryLabel(athlete.category) }}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                (click)="togglePaid(athlete.id)"
-                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold"
-                [class.bg-green-600]="athlete.paid"
-                [class.text-white]="athlete.paid"
-                [class.bg-red-100]="!athlete.paid"
-                [class.text-red-700]="!athlete.paid"
-              >
-                @if (athlete.paid) {
-                  <svg lucideCheck [size]="14" class="block"></svg>
-                  Pagado
-                } @else {
-                  <svg lucideX [size]="14" class="block"></svg>
-                  Pendiente
-                }
-              </button>
+                  <svg lucideTrash2 [size]="16" class="block"></svg>
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  mat-icon-button
+                  (click)="restoreAthlete(athlete.id); $event.stopPropagation()"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-600 hover:bg-blue-50"
+                  title="Restaurar jugador"
+                >
+                  <svg lucideRotateCcw [size]="16" class="block"></svg>
+                </button>
+              }
             </div>
+          </td>
+        </ng-container>
 
-            <div>
-              <label class="text-xs font-medium uppercase tracking-wide text-gray-500">Deuda</label>
-              <div class="mt-1 flex items-center gap-2">
-                <span class="text-sm font-medium text-gray-700">$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  [value]="athlete.debt"
-                  (change)="updateDebt(athlete.id, +$any($event.target).value)"
-                  class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
-                />
-              </div>
+        <!-- Fila de detalle expandible -->
+        <ng-container matColumnDef="expandedDetail">
+          <td
+            mat-cell
+            *matCellDef="let athlete"
+            [attr.colspan]="displayedColumns.length"
+            class="p-0"
+          >
+            <div
+              class="overflow-hidden border-b border-gray-100 bg-gray-50 transition-all"
+              [class.max-h-0]="expandedId() !== athlete.id"
+              [class.max-h-[1000px]]="expandedId() === athlete.id"
+            >
+              @if (expandedId() === athlete.id) {
+                <div class="grid gap-6 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div class="flex flex-col gap-1 text-sm">
+                    <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Fecha de nacimiento
+                    </span>
+                    <span class="text-gray-900">{{ formatBirthDate(athlete.birthDate) }}</span>
+                  </div>
+
+                  <div class="flex flex-col gap-1 text-sm">
+                    <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Mano hábil
+                    </span>
+                    <span class="capitalize text-gray-900">{{ athlete.dominantHand }}</span>
+                  </div>
+
+                  <div class="flex flex-col gap-1 text-sm">
+                    <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Nivel
+                    </span>
+                    <span class="text-gray-900">{{ levelLabel(athlete) }}</span>
+                  </div>
+
+                  <div class="flex flex-col gap-1 text-sm">
+                    <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Tipo de paleta
+                    </span>
+                    <span class="text-gray-900">{{ paddleGripLabel(athlete.paddleGrip) }}</span>
+                  </div>
+
+                  @if (athlete.level !== 'principiante') {
+                    <div class="flex flex-col gap-1 text-sm">
+                      <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Gomas (derecha / revés)
+                      </span>
+                      <span class="text-gray-900">
+                        {{ rubberTypeLabel(athlete.rubberForehand) }} /
+                        {{ rubberTypeLabel(athlete.rubberBackhand) }}
+                      </span>
+                    </div>
+
+                    <div class="flex flex-col gap-1 text-sm">
+                      <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Estilo de juego
+                      </span>
+                      <span class="text-gray-900">{{ playingStyleLabel(athlete.playingStyle) }}</span>
+                    </div>
+                  }
+
+                  @if (athlete.level === 'avanzado') {
+                    <div class="flex flex-col gap-1 text-sm">
+                      <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Club
+                      </span>
+                      <span class="text-gray-900">{{ athlete.club ?? 'Sin especificar' }}</span>
+                    </div>
+
+                    <div class="flex flex-col gap-1 text-sm">
+                      <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Objetivo en concreto
+                      </span>
+                      <span class="text-gray-900">{{ athlete.specificGoal ?? 'Sin especificar' }}</span>
+                    </div>
+                  }
+
+                  <div class="flex flex-col gap-1 text-sm">
+                    <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Días de entrenamiento
+                    </span>
+                    <span class="text-gray-900">{{ trainingDaysLabel(athlete.trainingDays) }}</span>
+                  </div>
+
+                  <div class="flex flex-col gap-1 text-sm">
+                    <span class="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Celular
+                    </span>
+                    <span class="text-gray-900">{{ athlete.phone }}</span>
+                  </div>
+
+                  @if (athlete.welcomeForm; as welcomeForm) {
+                    <div class="col-span-full rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm text-gray-700">
+                      <p class="mb-2 font-semibold text-brand-700">Formulario de bienvenida</p>
+                      <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        <p>
+                          <span class="font-medium text-gray-500">Objetivo principal:</span>
+                          {{ mainGoalLabel(welcomeForm.mainGoal) }}
+                        </p>
+                        <p>
+                          <span class="font-medium text-gray-500">Meta a corto plazo:</span>
+                          {{ welcomeForm.shortTermGoal }}
+                        </p>
+                        <p>
+                          <span class="font-medium text-gray-500">Meta a largo plazo:</span>
+                          {{ welcomeForm.longTermGoal }}
+                        </p>
+                        <p>
+                          <span class="font-medium text-gray-500">Motivación:</span>
+                          {{ welcomeForm.motivation }}
+                        </p>
+                        <p>
+                          <span class="font-medium text-gray-500">Acompañamiento esperado:</span>
+                          {{ welcomeForm.coachSupport }}
+                        </p>
+                        <p>
+                          <span class="font-medium text-gray-500">Experiencia:</span>
+                          {{ yearsPlayingLabel(welcomeForm.yearsPlaying) }} ·
+                          {{
+                            welcomeForm.hasCompeted
+                              ? 'Con experiencia en torneos'
+                              : 'Sin experiencia en torneos'
+                          }}
+                        </p>
+                        <p>
+                          <span class="font-medium text-gray-500">Nivel autopercibido:</span>
+                          {{ selfLevelLabel(welcomeForm.selfPerceivedLevel) }}
+                        </p>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
             </div>
-          </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          class="cursor-pointer hover:bg-gray-50"
+          (click)="toggleExpand(row.id)"
+        ></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: ['expandedDetail']; when: isExpansionDetailRow"
+          class="detail-row"
+        ></tr>
+
+        <!-- Sin resultados -->
+        @if (dataSource.data.length === 0) {
+          <tr class="mat-row">
+            <td [attr.colspan]="displayedColumns.length" class="px-4 py-8 text-center text-sm text-gray-500">
+              No se encontraron jugadores con los filtros aplicados.
+            </td>
+          </tr>
         }
-      </section>
-    }
-  } @else {
-    <div
-      class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500"
-    >
-      No se encontraron jugadores con los filtros aplicados.
+      </table>
     </div>
-  }
 
-  <!-- Modal: alta / edición de jugador (componente compartido con el Home) -->
+    <mat-paginator
+      [pageSizeOptions]="[10, 25, 50, 100]"
+      [pageSize]="10"
+      showFirstLastButtons
+      aria-label="Seleccionar página de jugadores"
+    ></mat-paginator>
+  </section>
+
+  <!-- Modal: alta / edición de jugador -->
   @if (isFormOpen()) {
     <app-player-form-modal [athlete]="editingAthlete()" (closed)="closeForm()" />
   }
