@@ -18,6 +18,11 @@ function dayControlName(weekday: Weekday): string {
   return `dia${weekday}`;
 }
 
+function isQuarterHour(time: string): boolean {
+  const minutes = Number(time.split(':')[1]);
+  return minutes % 15 === 0;
+}
+
 const EMPTY_FORM = {
   label: '',
   startTime: '09:00',
@@ -166,6 +171,10 @@ export class ShiftConfig {
     }
     if (value.endTime <= value.startTime) {
       this.error.set('La hora de fin debe ser posterior a la hora de inicio.');
+      return;
+    }
+    if (!isQuarterHour(value.startTime) || !isQuarterHour(value.endTime)) {
+      this.error.set('Los minutos deben ser cada 15 (00, 15, 30, 45).');
       return;
     }
 

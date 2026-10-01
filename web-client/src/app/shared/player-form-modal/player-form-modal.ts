@@ -82,6 +82,7 @@ export class PlayerFormModal {
   protected readonly lastCreated = signal<Athlete | null>(null);
   protected readonly saveError = signal<string | null>(null);
   protected readonly isEditing = computed(() => this.athlete() !== null);
+  protected readonly isSaving = signal(false);
 
   protected readonly form = this.fb.nonNullable.group({
     firstName: ['', Validators.required],
@@ -210,6 +211,7 @@ export class PlayerFormModal {
       return;
     }
 
+    this.isSaving.set(true);
     this.saveError.set(null);
     const value = this.form.getRawValue();
     const payload = {
@@ -238,6 +240,7 @@ export class PlayerFormModal {
         this.normalizePhone(athlete.phone) === normalizedPhone && athlete.id !== editing?.id,
     );
     if (duplicate) {
+      this.isSaving.set(false);
       this.form.controls.phone.setErrors({ duplicatePhone: true });
       this.form.controls.phone.markAsTouched();
       return;
@@ -266,6 +269,8 @@ export class PlayerFormModal {
       this.form.reset(EMPTY_FORM);
     } catch (err: any) {
       this.saveError.set(err?.message ?? 'Ocurrió un error inesperado. Reintentá.');
+    } finally {
+      this.isSaving.set(false);
     }
   }
 

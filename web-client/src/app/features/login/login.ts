@@ -54,6 +54,7 @@ export class Login {
   protected readonly version = environment.version;
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly showPassword = signal(false);
+  protected readonly isLoading = signal(false);
 
   protected readonly form = this.fb.nonNullable.group({
     email: ['', [emailOrUsernameValidator]],
@@ -70,6 +71,9 @@ export class Login {
       return;
     }
 
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
     const { email: rawEmail, password } = this.form.getRawValue();
     const trimmedIdentifier = rawEmail.trim().toLowerCase();
     const email = trimmedIdentifier.includes('@')
@@ -79,24 +83,27 @@ export class Login {
 
     if (!result.success) {
       this.errorMessage.set(result.error ?? 'Credenciales inválidas. Intenta nuevamente.');
+      this.isLoading.set(false);
       return;
     }
 
-    this.errorMessage.set(null);
     await Promise.all([this.playersService.loadAthletes(), this.calendarService.loadTemplates()]);
 
     const user = this.authService.user();
     if (user?.role === 'player' && user.athleteId !== undefined) {
       if (this.playersService.isSetupPending(user.athleteId)) {
+        this.isLoading.set(false);
         void this.router.navigate(['/primer-ingreso']);
         return;
       }
       if (this.playersService.isWelcomeFormPending(user.athleteId)) {
+        this.isLoading.set(false);
         void this.router.navigate(['/bienvenida']);
         return;
       }
     }
 
+    this.isLoading.set(false);
     void this.router.navigate(['/home']);
   }
 }

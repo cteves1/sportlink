@@ -1,4 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { addDays, atMidnight, dateKey, weekdayOf } from '../../core/date/calendar-dates';
 import { Athlete, PlayersService } from '../../core/players/players.service';
 import { SupabaseService } from '../../core/supabase/supabase.service';
@@ -90,6 +91,9 @@ export class CalendarService {
 
   readonly templates = signal<ShiftTemplate[]>([]);
 
+  private readonly currentRange = signal<{ from: Date; to: Date } | null>(null);
+  private realtimeChannel: RealtimeChannel | null = null;
+
   /** Sesiones agrupadas por día (clave 'yyyy-mm-dd') para pintar la grilla sin recorrer todo el arreglo por celda. */
   readonly sessionsByDateKey = computed<Map<string, TrainingSession[]>>(() => {
     const map = new Map<string, TrainingSession[]>();
@@ -122,6 +126,7 @@ export class CalendarService {
   }
 
   async loadSessionsForRange(from: Date, to: Date): Promise<void> {
+    this.currentRange.set({ from, to });
     const fromStr = from.toISOString().split('T')[0];
     const toStr = to.toISOString().split('T')[0];
 
@@ -362,6 +367,44 @@ export class CalendarService {
 
   setCurrentPlayer(playerId: number): void {
     this.currentPlayerId.set(playerId);
+  }
+
+  /**
+   * Suscripción a cambios en sesiones y asistencias para mantener el calendario
+   * sincronizado entre dispositivos. Cuando un jugador cancela o reserva un cupo,
+   * el entrenador ve el cambio en tiempo real sin refrescar.
+   */
+  subscribeToChanges(): void {
+    if (this.realtimeChannel) return;
+
+    this.realtimeChannel = this.supabase
+      .channel('calendar_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'training_sessions' },
+        () => {
+          void this.reloadCurrentRange();
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'session_attendances' },
+        () => {
+          void this.reloadCurrentRange();
+        },
+      )
+      .subscribe();
+  }
+
+  unsubscribe(): void {
+    this.realtimeChannel?.unsubscribe();
+    this.realtimeChannel = null;
+  }
+
+  private async reloadCurrentRange(): Promise<void> {
+    const range = this.currentRange();
+    if (!range) return;
+    await this.loadSessionsForRange(range.from, range.to);
   }
 
   confirmedCount(session: TrainingSession): number {

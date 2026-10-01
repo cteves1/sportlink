@@ -1,7 +1,6 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import {
   LucideCircleCheck,
-  LucideCircleX,
   LucideClipboardCheck,
   LucideClock,
   LucideFlame,
@@ -16,7 +15,6 @@ import {
   LucideSunset,
   LucideTableProperties,
   LucideTarget,
-  LucideTimer,
   LucideTrendingUp,
   LucideTrophy,
   LucideUserPlus,
@@ -32,7 +30,6 @@ import {
 } from '../../core/players/players.service';
 import { PlayerFormModal } from '../../shared/player-form-modal/player-form-modal';
 import { ProgressChart, ProgressSeries } from '../../shared/progress-chart/progress-chart';
-import { TimerModal } from '../../shared/timer-modal/timer-modal';
 import { PROGRESS_BY_RANGE, PROGRESS_RANGE_LABELS, ProgressRange } from './progress.mock';
 import { AtletaService } from '../atleta/atleta.service';
 import {
@@ -40,13 +37,10 @@ import {
   WORK_TYPE_LABELS,
   dailyMesocyclePlan,
 } from '../atleta/periodization';
-
-interface Athlete {
-  id: number;
-  name: string;
-  initials: string;
-  status: 'presente' | 'ausente' | 'pendiente';
-}
+import { CalendarService } from '../calendario/calendar.service';
+import { TrainingSession } from '../calendario/calendar.models';
+import { Competition, CompetitionLevel } from '../atleta/atleta.models';
+import { addDays, atMidnight, capitalize, dateKey } from '../../core/date/calendar-dates';
 
 interface WeeklyAttendance {
   percentage: number;
@@ -55,12 +49,6 @@ interface WeeklyAttendance {
 interface TableStatus {
   total: number;
   inUse: number;
-}
-
-interface UpcomingTournament {
-  name: string;
-  date: Date;
-  location: string;
 }
 
 interface CoachTask {
@@ -75,29 +63,18 @@ interface PlayerStats {
   streak: number;
 }
 
-interface NextTraining {
-  dayLabel: string;
-  date: Date;
-  time: string;
-  table: string;
-  focus: string;
-}
-
 @Component({
   selector: 'app-home',
   standalone: true,
   imports: [
     PlayerFormModal,
     ProgressChart,
-    TimerModal,
     LucideUsers,
     LucidePercent,
     LucideTableProperties,
     LucideClipboardCheck,
     LucideUserPlus,
-    LucideTimer,
     LucideCircleCheck,
-    LucideCircleX,
     LucideTrophy,
     LucideStickyNote,
     LucideTarget,
@@ -114,10 +91,11 @@ interface NextTraining {
   ],
   templateUrl: './home.html',
 })
-export class Home {
+export class Home implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly playersService = inject(PlayersService);
   private readonly atletaService = inject(AtletaService);
+  private readonly calendarService = inject(CalendarService);
   private readonly router = inject(Router);
 
   protected readonly trainingLoadLabels = TRAINING_LOAD_LABELS;
@@ -136,6 +114,12 @@ export class Home {
   });
 
   protected readonly today = new Date();
+
+  ngOnInit(): void {
+    const today = atMidnight(new Date());
+    const future = addDays(today, 30);
+    void this.calendarService.ensureSessionsForRange(today, future);
+  }
 
   protected readonly formattedDate = computed(() =>
     new Intl.DateTimeFormat('es-ES', {
@@ -163,36 +147,24 @@ export class Home {
     return 'tarde';
   });
 
-  protected readonly activeAthletesCount = signal(18);
+  protected readonly activeAthletesCount = computed(
+    () => this.playersService.athletes().filter((athlete) => athlete.status === 'activo').length,
+  );
 
   protected readonly weeklyAttendance = signal<WeeklyAttendance>({ percentage: 92 });
 
   protected readonly tableStatus = signal<TableStatus>({ total: 6, inUse: 4 });
 
-  protected readonly trainingFocus = signal('Multibola - Enfoque en Topspin de Derecha');
-
-  protected readonly todaysAthletes = signal<Athlete[]>([
-    { id: 1, name: 'Matías Fernández', initials: 'MF', status: 'presente' },
-    { id: 2, name: 'Sofía Rojas', initials: 'SR', status: 'presente' },
-    { id: 3, name: 'Diego Vargas', initials: 'DV', status: 'ausente' },
-    { id: 4, name: 'Camila Torres', initials: 'CT', status: 'presente' },
-    { id: 5, name: 'Ignacio Soto', initials: 'IS', status: 'pendiente' },
-    { id: 6, name: 'Valentina Muñoz', initials: 'VM', status: 'presente' },
-  ]);
-
-  protected readonly presentCount = computed(
-    () => this.todaysAthletes().filter((athlete) => athlete.status === 'presente').length,
+  protected readonly todaysSessions = computed(() =>
+    this.calendarService.sessionsForDate(atMidnight(new Date())),
   );
 
-  protected readonly upcomingTournament = signal<UpcomingTournament>({
-    name: 'Copa Regional Sub-18',
-    date: new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate() + 12),
-    location: 'Complejo Deportivo Municipal',
-  });
-
-  protected readonly daysUntilTournament = computed(() => {
-    const diffMs = this.upcomingTournament().date.getTime() - this.today.getTime();
-    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  protected readonly nextSession = computed<TrainingSession | null>(() => {
+    const today = atMidnight(new Date()).getTime();
+    return this.calendarService
+      .sessions()
+      .filter((session) => session.date.getTime() >= today)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
   });
 
   protected readonly tasks = signal<CoachTask[]>([
@@ -213,7 +185,6 @@ export class Home {
   // ------------------------------------------------------------------
 
   protected readonly playerFormOpen = signal(false);
-  protected readonly timerOpen = signal(false);
 
   /** Lleva al calendario abriendo directamente el registro de asistencia de hoy. */
   protected goToAttendance(): void {
@@ -228,22 +199,22 @@ export class Home {
     this.playerFormOpen.set(false);
   }
 
-  protected openTimer(): void {
-    this.timerOpen.set(true);
+  protected goToCalendar(): void {
+    void this.router.navigate(['/calendario']);
   }
 
-  protected closeTimer(): void {
-    this.timerOpen.set(false);
+  protected goToPlayers(): void {
+    void this.router.navigate(['/jugadores']);
   }
 
-  protected statusLabel(status: Athlete['status']): string {
-    switch (status) {
-      case 'presente':
-        return 'Presente';
-      case 'ausente':
-        return 'Ausente';
-      default:
-        return 'Pendiente';
+  protected goToCoachMode(): void {
+    void this.router.navigate(['/modo-coach']);
+  }
+
+  protected goToMyProfile(): void {
+    const athleteId = this.authService.user()?.athleteId;
+    if (athleteId !== undefined) {
+      void this.router.navigate(['/jugadores', athleteId]);
     }
   }
 
@@ -291,19 +262,67 @@ export class Home {
     streak: 6,
   }));
 
-  protected readonly nextTraining = signal<NextTraining>({
-    dayLabel: 'Jueves',
-    date: new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate() + 2),
-    time: '18:00 - 20:00',
-    table: 'Mesa 2',
-    focus: 'Servicio y Ataque de Tercera Bola',
+  protected readonly upcomingCompetitions = computed(() => {
+    const athleteId = this.authService.user()?.athleteId;
+    if (athleteId === undefined) return [];
+    const today = atMidnight(new Date()).getTime();
+    return this.atletaService
+      .profileFor(athleteId)
+      .competitions.filter((competition) => competition.date.getTime() >= today)
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
   });
 
-  protected readonly formattedNextTrainingDate = computed(() =>
-    new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(
-      this.nextTraining().date,
-    ),
-  );
+  protected readonly nextCompetition = computed(() => this.upcomingCompetitions()[0] ?? null);
+
+  protected readonly nextTraining = computed<TrainingSession | null>(() => {
+    const athleteId = this.authService.user()?.athleteId;
+    if (athleteId === undefined) return null;
+    const today = atMidnight(new Date()).getTime();
+    return this.calendarService
+      .sessions()
+      .filter(
+        (session) =>
+          session.date.getTime() >= today &&
+          session.attendances.some(
+            (attendance) =>
+              attendance.playerId === athleteId && attendance.status === 'confirmado',
+          ),
+      )
+      .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+  });
+
+  protected readonly formattedNextTrainingDate = computed(() => {
+    const session = this.nextTraining();
+    if (!session) return '';
+    return capitalize(
+      new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+        session.date,
+      ),
+    );
+  });
+
+  protected formatCompetitionDate(date: Date): string {
+    return capitalize(
+      new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+        date,
+      ),
+    );
+  }
+
+  protected competitionLevelLabel(level: CompetitionLevel): string {
+    const labels: Record<CompetitionLevel, string> = {
+      club: 'Club',
+      regional: 'Regional',
+      nacional: 'Nacional',
+      internacional: 'Internacional',
+    };
+    return labels[level];
+  }
+
+  protected daysUntil(date: Date): number {
+    const diffMs = atMidnight(date).getTime() - atMidnight(new Date()).getTime();
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  }
 
   // ------------------------------------------------------------------
   // Gráfico de avance del atleta (datos mockeados)

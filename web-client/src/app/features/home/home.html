@@ -84,86 +84,92 @@
         class="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-2"
       >
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-900">Entrenamiento del Día</h2>
-          <span class="text-xs font-medium text-gray-500"
-            >{{ presentCount() }}/{{ todaysAthletes().length }} presentes</span
-          >
-        </div>
-
-        <div class="flex items-center gap-3 rounded-lg bg-brand-50 px-4 py-3">
-          <span
-            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-brand-700"
-          >
-            <svg lucideTarget [size]="18" class="block"></svg>
+          <h2 class="text-lg font-semibold text-gray-900">Entrenamiento de Hoy</h2>
+          <span class="text-xs font-medium text-gray-500">
+            {{ todaysSessions().length }} {{ todaysSessions().length === 1 ? 'turno' : 'turnos' }}
           </span>
-          <div>
-            <p class="text-xs font-medium uppercase tracking-wide text-brand-700">Enfoque de hoy</p>
-            <p class="text-sm font-semibold text-gray-900">{{ trainingFocus() }}</p>
-          </div>
         </div>
 
-        <ul class="flex flex-col divide-y divide-gray-100">
-          @for (athlete of todaysAthletes(); track athlete.id) {
-            <li class="flex items-center justify-between py-3">
-              <div class="flex items-center gap-3">
-                <span
-                  class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-sm font-medium text-gray-700"
-                >
-                  {{ athlete.initials }}
-                </span>
-                <span class="text-sm font-medium text-gray-800">{{ athlete.name }}</span>
-              </div>
-
-              @switch (athlete.status) {
-                @case ('presente') {
+        @if (todaysSessions().length === 0) {
+          <p class="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500">
+            No hay turnos programados para hoy.
+          </p>
+        } @else {
+          <ul class="flex flex-col divide-y divide-gray-100">
+            @for (session of todaysSessions(); track session.id) {
+              <li class="flex flex-col gap-2 py-3">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <span
+                      class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-brand-700"
+                    >
+                      <svg lucideClock [size]="18" class="block"></svg>
+                    </span>
+                    <div>
+                      <p class="text-sm font-semibold text-gray-900">{{ session.shiftLabel }}</p>
+                      <p class="text-xs text-gray-500">{{ session.startTime }} - {{ session.endTime }}</p>
+                    </div>
+                  </div>
                   <span
-                    class="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700"
+                    class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
+                    [class.bg-red-100]="session.capacity !== null && session.attendances.length >= session.capacity"
+                    [class.text-red-700]="session.capacity !== null && session.attendances.length >= session.capacity"
+                    [class.bg-brand-100]="session.capacity === null || session.attendances.length < session.capacity"
+                    [class.text-brand-700]="session.capacity === null || session.attendances.length < session.capacity"
                   >
-                    <svg lucideCircleCheck [size]="14" class="block"></svg>
-                    Presente
+                    {{ session.attendances.length }}
+                    @if (session.capacity !== null) {
+                      / {{ session.capacity }}
+                    }
+                    anotados
                   </span>
+                </div>
+                @if (session.attendances.length > 0) {
+                  <p class="text-xs text-gray-500">
+                    {{ session.attendances.filter(a => a.status === 'confirmado').length }} confirmados
+                  </p>
                 }
-                @case ('ausente') {
-                  <span
-                    class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700"
-                  >
-                    <svg lucideCircleX [size]="14" class="block"></svg>
-                    Ausente
-                  </span>
-                }
-                @default {
-                  <span
-                    class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600"
-                  >
-                    Pendiente
-                  </span>
-                }
-              }
-            </li>
-          }
-        </ul>
+              </li>
+            }
+          </ul>
+        }
       </div>
 
       <!-- Próximos eventos y tareas -->
       <div class="flex flex-col gap-6">
-        <!-- Próximo torneo -->
+        <!-- Próxima sesión -->
         <div class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div class="flex items-center gap-2">
             <span
               class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700"
             >
-              <svg lucideTrophy [size]="18" class="block"></svg>
+              <svg lucideClock [size]="18" class="block"></svg>
             </span>
             <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
-              Próximo Torneo
+              Próxima Sesión
             </h2>
           </div>
-          <p class="text-lg font-semibold text-gray-900">{{ upcomingTournament().name }}</p>
-          <p class="text-sm text-gray-500">{{ upcomingTournament().location }}</p>
-          <div class="mt-1 flex items-baseline gap-2">
-            <span class="text-3xl font-bold text-brand-700">{{ daysUntilTournament() }}</span>
-            <span class="text-sm text-gray-500">días restantes</span>
-          </div>
+          @if (nextSession(); as session) {
+            <p class="text-lg font-semibold text-gray-900">{{ session.shiftLabel }}</p>
+            <p class="text-sm capitalize text-gray-500">
+              {{ formatCompetitionDate(session.date) }}
+            </p>
+            <div class="mt-1 flex flex-wrap items-center gap-4 text-sm text-gray-600">
+              <span class="flex items-center gap-1.5">
+                <svg lucideClock [size]="14" class="block text-gray-400"></svg>
+                {{ session.startTime }} - {{ session.endTime }}
+              </span>
+            </div>
+            <button
+              type="button"
+              (click)="goToCalendar()"
+              class="mt-1 self-start rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+            >
+              Ver calendario
+            </button>
+          } @else {
+            <p class="text-sm text-gray-500">No hay sesiones programadas para los próximos días.</p>
+          }
         </div>
 
         <!-- Notas / tareas rápidas -->
@@ -215,13 +221,13 @@
     <!-- Acciones rápidas -->
     <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
-        Acciones Rápidas
+        Accesos Directos
       </h2>
-      <div class="flex flex-col gap-3 sm:flex-row">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <button
           type="button"
           (click)="goToAttendance()"
-          class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
         >
           <svg lucideClipboardCheck [size]="18" class="block"></svg>
           Registrar Asistencia
@@ -229,28 +235,32 @@
         <button
           type="button"
           (click)="openPlayerForm()"
-          class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <svg lucideUserPlus [size]="18" class="block"></svg>
           Añadir Jugador
         </button>
         <button
           type="button"
-          (click)="openTimer()"
-          class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          (click)="goToCalendar()"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
-          <svg lucideTimer [size]="18" class="block"></svg>
-          Iniciar Cronómetro
+          <svg lucideClock [size]="18" class="block"></svg>
+          Calendario
+        </button>
+        <button
+          type="button"
+          (click)="goToPlayers()"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <svg lucideUsers [size]="18" class="block"></svg>
+          Jugadores
         </button>
       </div>
     </section>
 
     @if (playerFormOpen()) {
       <app-player-form-modal (closed)="closePlayerForm()" />
-    }
-
-    @if (timerOpen()) {
-      <app-timer-modal (closed)="closeTimer()" />
     }
   </div>
 } @else {
@@ -368,6 +378,76 @@
       </div>
     </section>
 
+    <!-- Próximos eventos y entrenamiento -->
+    <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <!-- Próximo torneo / competencia -->
+      <div class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center gap-2">
+          <span
+            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700"
+          >
+            <svg lucideTrophy [size]="18" class="block"></svg>
+          </span>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Próximo Torneo / Competencia
+          </h2>
+        </div>
+        @if (nextCompetition(); as competition) {
+          <p class="text-lg font-semibold text-gray-900">{{ competition.name }}</p>
+          <p class="text-sm capitalize text-gray-500">{{ formatCompetitionDate(competition.date) }}</p>
+          <div class="mt-1 flex flex-wrap items-center gap-4 text-sm text-gray-600">
+            <span class="flex items-center gap-1.5">
+              <svg lucideMapPin [size]="14" class="block text-gray-400"></svg>
+              {{ competition.city }}
+            </span>
+            <span class="flex items-center gap-1.5">
+              <svg lucideTrophy [size]="14" class="block text-gray-400"></svg>
+              {{ competitionLevelLabel(competition.level) }}
+            </span>
+          </div>
+          <div class="mt-1 flex items-baseline gap-2">
+            <span class="text-3xl font-bold text-brand-700">{{ daysUntil(competition.date) }}</span>
+            <span class="text-sm text-gray-500">días restantes</span>
+          </div>
+        } @else {
+          <p class="text-sm text-gray-500">No hay competencias programadas.</p>
+        }
+      </div>
+
+      <!-- Próximo entrenamiento -->
+      <div class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center gap-2">
+          <span
+            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700"
+          >
+            <svg lucideTarget [size]="18" class="block"></svg>
+          </span>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
+            Próximo Entrenamiento
+          </h2>
+        </div>
+        @if (nextTraining(); as session) {
+          <p class="text-lg font-semibold text-gray-900">{{ session.shiftLabel }}</p>
+          <p class="text-sm capitalize text-gray-500">{{ formattedNextTrainingDate() }}</p>
+          <div class="mt-1 flex flex-wrap items-center gap-4 text-sm text-gray-600">
+            <span class="flex items-center gap-1.5">
+              <svg lucideClock [size]="14" class="block text-gray-400"></svg>
+              {{ session.startTime }} - {{ session.endTime }}
+            </span>
+          </div>
+          <button
+            type="button"
+            (click)="goToCalendar()"
+            class="mt-1 self-start rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+          >
+            Ver calendario
+          </button>
+        } @else {
+          <p class="text-sm text-gray-500">No tienes entrenamientos confirmados próximamente.</p>
+        }
+      </div>
+    </section>
+
     <!-- Gráfico de avance del atleta -->
     <section class="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -410,45 +490,38 @@
       <app-progress-chart [labels]="progressLabels()" [series]="progressSeries()" />
     </section>
 
-    <!-- Próximo entrenamiento informativo -->
-    <section class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div class="flex items-center gap-2">
-        <span
-          class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-50 text-brand-700"
+    <!-- Accesos rápidos del jugador -->
+    <section class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        Accesos Rápidos
+      </h2>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <button
+          type="button"
+          (click)="goToCalendar()"
+          class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          <svg lucideClock [size]="18" class="block"></svg>
+          Mi Calendario
+        </button>
+        <button
+          type="button"
+          (click)="goToMyProfile()"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <svg lucideUsers [size]="18" class="block"></svg>
+          Mi Perfil
+        </button>
+        <button
+          type="button"
+          (click)="goToCoachMode()"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <svg lucideTarget [size]="18" class="block"></svg>
-        </span>
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
-          Próximo Entrenamiento
-        </h2>
-      </div>
-
-      <p class="text-lg font-semibold capitalize text-gray-900">
-        {{ formattedNextTrainingDate() }}
-      </p>
-
-      <div class="flex flex-wrap gap-4">
-        <div class="flex items-center gap-2 text-sm text-gray-600">
-          <svg lucideClock [size]="16" class="block text-gray-400"></svg>
-          {{ nextTraining().time }}
-        </div>
-        <div class="flex items-center gap-2 text-sm text-gray-600">
-          <svg lucideMapPin [size]="16" class="block text-gray-400"></svg>
-          {{ nextTraining().table }}
-        </div>
-      </div>
-
-      <div class="flex items-center gap-3 rounded-lg bg-brand-50 px-4 py-3">
-        <span
-          class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-brand-700"
-        >
-          <svg lucideTarget [size]="18" class="block"></svg>
-        </span>
-        <div>
-          <p class="text-xs font-medium uppercase tracking-wide text-brand-700">Enfoque</p>
-          <p class="text-sm font-semibold text-gray-900">{{ nextTraining().focus }}</p>
-        </div>
+          Modo Coach
+        </button>
       </div>
     </section>
+
   </div>
 }

@@ -737,6 +737,7 @@
                 <input
                   id="newSessionStart"
                   type="time"
+                  step="900"
                   [ngModel]="newSessionStart()"
                   (ngModelChange)="newSessionStart.set($event)"
                   class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
@@ -747,6 +748,7 @@
                 <input
                   id="newSessionEnd"
                   type="time"
+                  step="900"
                   [ngModel]="newSessionEnd()"
                   (ngModelChange)="newSessionEnd.set($event)"
                   class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"

@@ -143,6 +143,7 @@ export class Calendario implements OnInit {
 
   /** La acción rápida "Registrar Asistencia" del Home entra con ?asistencia=hoy. */
   ngOnInit(): void {
+    this.calendarService.subscribeToChanges();
     this.freedSlotsService.subscribeToChanges();
     void this.freedSlotsService.loadEvents();
     if (this.route.snapshot.queryParamMap.get('asistencia') === 'hoy') {
@@ -405,6 +406,11 @@ export class Calendario implements OnInit {
     return hours * 60 + minutes;
   }
 
+  private isQuarterHour(time: string): boolean {
+    const minutes = Number(time.split(':')[1]);
+    return minutes % 15 === 0;
+  }
+
   protected setRole(role: UserRole): void {
     this.calendarService.setRole(role);
     this.selectedDate.set(null);
@@ -634,6 +640,10 @@ export class Calendario implements OnInit {
     }
     if (this.newSessionEnd() <= this.newSessionStart()) {
       this.newSessionError.set('La hora de fin debe ser posterior a la de inicio.');
+      return;
+    }
+    if (!this.isQuarterHour(this.newSessionStart()) || !this.isQuarterHour(this.newSessionEnd())) {
+      this.newSessionError.set('Los minutos deben ser cada 15 (00, 15, 30, 45).');
       return;
     }
 
