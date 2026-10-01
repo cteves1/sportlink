@@ -431,17 +431,14 @@
           *matRowDef="let row; columns: ['expandedDetail']; when: isExpansionDetailRow"
           class="detail-row"
         ></tr>
-
-        <!-- Sin resultados -->
-        @if (dataSource.data.length === 0) {
-          <tr class="mat-row">
-            <td [attr.colspan]="displayedColumns.length" class="px-4 py-8 text-center text-sm text-gray-500">
-              No se encontraron jugadores con los filtros aplicados.
-            </td>
-          </tr>
-        }
       </table>
     </div>
+
+    @if (dataSource.data.length === 0) {
+      <div class="px-4 py-8 text-center text-sm text-gray-500">
+        No se encontraron jugadores con los filtros aplicados.
+      </div>
+    }
 
     <mat-paginator
       [pageSizeOptions]="[10, 25, 50, 100]"
