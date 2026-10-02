@@ -1,14 +1,14 @@
-import { AfterViewInit, Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatPaginator, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSort, MatSortModule } from '@angular/material/sort';
-import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
+import { MatTableModule } from '@angular/material/table';
 import {
   LucideCheck,
   LucideChevronDown,
@@ -42,6 +42,16 @@ export type { Athlete, Category };
 
 type StatusFilter = 'todos' | 'activo' | 'inactivo';
 type CategoryFilter = 'todas' | Category;
+
+interface SortState {
+  active: string;
+  direction: 'asc' | 'desc' | '';
+}
+
+interface PageState {
+  pageIndex: number;
+  pageSize: number;
+}
 
 @Component({
   selector: 'app-jugadores',
@@ -105,7 +115,8 @@ export class Jugadores implements AfterViewInit {
     'actions',
   ];
 
-  protected readonly dataSource = new MatTableDataSource<Athlete>([]);
+  protected readonly sortState = signal<SortState>({ active: '', direction: '' });
+  protected readonly pageState = signal<PageState>({ pageIndex: 0, pageSize: 10 });
 
   @ViewChild(MatSort) sort!: MatSort;
   @ViewChild(MatPaginator) paginator!: MatPaginator;
@@ -133,6 +144,43 @@ export class Jugadores implements AfterViewInit {
     });
   });
 
+  protected readonly sortedAthletes = computed(() => {
+    const data = [...this.filteredAthletes()];
+    const { active, direction } = this.sortState();
+    if (!active || !direction) return data;
+
+    const sortValue = (athlete: Athlete): string | number => {
+      switch (active) {
+        case 'fullName':
+          return `${athlete.firstName} ${athlete.lastName}`.toLowerCase();
+        case 'category':
+          return athlete.category;
+        case 'status':
+          return athlete.status;
+        case 'attendance':
+          return athlete.attendance;
+        case 'debt':
+          return athlete.debt;
+        default:
+          return '';
+      }
+    };
+
+    return data.sort((a, b) => {
+      const valueA = sortValue(a);
+      const valueB = sortValue(b);
+      if (valueA < valueB) return direction === 'asc' ? -1 : 1;
+      if (valueA > valueB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  });
+
+  protected readonly paginatedAthletes = computed(() => {
+    const { pageIndex, pageSize } = this.pageState();
+    const start = pageIndex * pageSize;
+    return this.sortedAthletes().slice(start, start + pageSize);
+  });
+
   protected readonly resultsCount = computed(() => this.filteredAthletes().length);
 
   protected readonly editingAthlete = computed(() => {
@@ -141,27 +189,37 @@ export class Jugadores implements AfterViewInit {
     return this.playersService.athletes().find((athlete) => athlete.id === id) ?? null;
   });
 
-  constructor() {
-    effect(() => {
-      this.dataSource.data = this.filteredAthletes();
-    });
-  }
-
   ngAfterViewInit(): void {
-    this.dataSource.sort = this.sort;
-    this.dataSource.paginator = this.paginator;
+    // Sincroniza el estado interno con los componentes de Material en caso de cambios por UX.
+    if (this.sort) {
+      this.sortState.set({
+        active: this.sort.active,
+        direction: this.sort.direction as SortState['direction'],
+      });
+    }
   }
 
   protected applySearch(event: Event): void {
     this.searchTerm.set((event.target as HTMLInputElement).value);
+    this.pageState.update((state) => ({ ...state, pageIndex: 0 }));
   }
 
   protected selectCategory(category: CategoryFilter): void {
     this.selectedCategory.set(category);
+    this.pageState.update((state) => ({ ...state, pageIndex: 0 }));
   }
 
   protected selectStatus(status: StatusFilter): void {
     this.statusFilter.set(status);
+    this.pageState.update((state) => ({ ...state, pageIndex: 0 }));
+  }
+
+  protected onSort(sort: Sort): void {
+    this.sortState.set({ active: sort.active, direction: sort.direction as SortState['direction'] });
+  }
+
+  protected onPage(event: PageEvent): void {
+    this.pageState.set({ pageIndex: event.pageIndex, pageSize: event.pageSize });
   }
 
   protected toggleExpand(athleteId: number): void {

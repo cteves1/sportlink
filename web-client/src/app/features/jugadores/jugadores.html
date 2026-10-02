@@ -65,7 +65,13 @@
   <!-- Tabla de jugadores -->
   <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
     <div class="overflow-x-auto">
-      <table mat-table [dataSource]="dataSource" matSort class="w-full">
+      <table
+        mat-table
+        [dataSource]="paginatedAthletes()"
+        matSort
+        (matSortChange)="onSort($event)"
+        class="w-full"
+      >
         <!-- Nombre -->
         <ng-container matColumnDef="fullName">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Nombre</th>
@@ -396,16 +402,19 @@
       </table>
     </div>
 
-    @if (dataSource.data.length === 0) {
+    @if (sortedAthletes().length === 0) {
       <div class="px-4 py-8 text-center text-sm text-gray-500">
         No se encontraron jugadores con los filtros aplicados.
       </div>
     }
 
     <mat-paginator
+      [length]="sortedAthletes().length"
+      [pageSize]="pageState().pageSize"
+      [pageIndex]="pageState().pageIndex"
       [pageSizeOptions]="[10, 25, 50, 100]"
-      [pageSize]="10"
       showFirstLastButtons
+      (page)="onPage($event)"
       aria-label="Seleccionar página de jugadores"
     ></mat-paginator>
   </section>
