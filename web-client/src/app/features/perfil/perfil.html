@@ -128,4 +128,128 @@
       </div>
     }
   </div>
+
+  <div class="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div class="mb-4 flex items-center gap-3">
+      <svg lucideLock [size]="20" class="block text-gray-500"></svg>
+      <h2 class="text-lg font-semibold text-gray-900">Seguridad</h2>
+    </div>
+
+    @if (isEditingPassword()) {
+      <div class="flex flex-col gap-4">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Contraseña actual</label>
+          <div class="relative">
+            <input
+              [type]="showCurrentPassword() ? 'text' : 'password'"
+              [(ngModel)]="currentPassword"
+              autocomplete="current-password"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              (click)="toggleCurrentPasswordVisibility()"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+              [attr.aria-label]="showCurrentPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              @if (showCurrentPassword()) {
+                <svg lucideEyeOff [size]="18" class="block"></svg>
+              } @else {
+                <svg lucideEye [size]="18" class="block"></svg>
+              }
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Nueva contraseña</label>
+          <div class="relative">
+            <input
+              [type]="showNewPassword() ? 'text' : 'password'"
+              [(ngModel)]="newPassword"
+              autocomplete="new-password"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              (click)="toggleNewPasswordVisibility()"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+              [attr.aria-label]="showNewPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              @if (showNewPassword()) {
+                <svg lucideEyeOff [size]="18" class="block"></svg>
+              } @else {
+                <svg lucideEye [size]="18" class="block"></svg>
+              }
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium text-gray-700">Confirmar nueva contraseña</label>
+          <div class="relative">
+            <input
+              [type]="showConfirmPassword() ? 'text' : 'password'"
+              [(ngModel)]="confirmPassword"
+              autocomplete="new-password"
+              class="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              (click)="toggleConfirmPasswordVisibility()"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+              [attr.aria-label]="showConfirmPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              @if (showConfirmPassword()) {
+                <svg lucideEyeOff [size]="18" class="block"></svg>
+              } @else {
+                <svg lucideEye [size]="18" class="block"></svg>
+              }
+            </button>
+          </div>
+        </div>
+
+        @if (passwordError()) {
+          <p class="text-sm text-red-600">{{ passwordError() }}</p>
+        }
+
+        <div class="flex gap-2">
+          <button
+            type="button"
+            (click)="cancelEditingPassword()"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <svg lucideX [size]="16" class="block"></svg>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            (click)="savePassword()"
+            [disabled]="savingPassword()"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          >
+            {{ savingPassword() ? 'Guardando...' : 'Guardar contraseña' }}
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-900">Contraseña</p>
+          <p class="text-xs text-gray-500">Cambiala periódicamente para mantener tu cuenta segura.</p>
+        </div>
+        <button
+          type="button"
+          (click)="startEditingPassword()"
+          class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <svg lucidePencil [size]="16" class="block"></svg>
+          Cambiar
+        </button>
+      </div>
+    }
+  </div>
 </div>

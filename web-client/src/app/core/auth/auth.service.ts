@@ -102,4 +102,34 @@ export class AuthService {
     this.supabaseService.user.set(user);
     return { success: true };
   }
+
+  async updatePassword(input: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    const email = this.user()?.email;
+    if (!email) {
+      return { success: false, error: 'No se pudo identificar al usuario.' };
+    }
+
+    // Verifica la contraseña actual antes de cambiarla.
+    const { error: signInError } = await this.supabaseService.client.auth.signInWithPassword({
+      email,
+      password: input.currentPassword,
+    });
+
+    if (signInError) {
+      return { success: false, error: 'La contraseña actual es incorrecta.' };
+    }
+
+    const { error: updateError } = await this.supabaseService.client.auth.updateUser({
+      password: input.newPassword,
+    });
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    return { success: true };
+  }
 }

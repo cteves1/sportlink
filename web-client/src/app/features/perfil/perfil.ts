@@ -5,6 +5,9 @@ import {
   LucideArrowLeft,
   LucideCalendar,
   LucideCrown,
+  LucideEye,
+  LucideEyeOff,
+  LucideLock,
   LucideMail,
   LucidePencil,
   LucideShieldCheck,
@@ -27,6 +30,9 @@ import { AuthService, AppRole } from '../../core/auth/auth.service';
     LucidePencil,
     LucideX,
     LucideArrowLeft,
+    LucideLock,
+    LucideEye,
+    LucideEyeOff,
   ],
   templateUrl: './perfil.html',
 })
@@ -41,6 +47,16 @@ export class Perfil {
   protected readonly editName = signal('');
   protected readonly editSubscriptionTier = signal('');
   protected readonly editError = signal<string | null>(null);
+
+  protected readonly isEditingPassword = signal(false);
+  protected readonly savingPassword = signal(false);
+  protected readonly currentPassword = signal('');
+  protected readonly newPassword = signal('');
+  protected readonly confirmPassword = signal('');
+  protected readonly showCurrentPassword = signal(false);
+  protected readonly showNewPassword = signal(false);
+  protected readonly showConfirmPassword = signal(false);
+  protected readonly passwordError = signal<string | null>(null);
 
   protected readonly roleLabel = computed(() => {
     const role = this.user()?.role;
@@ -116,5 +132,71 @@ export class Perfil {
     }
 
     this.isEditing.set(false);
+  }
+
+  protected startEditingPassword(): void {
+    this.currentPassword.set('');
+    this.newPassword.set('');
+    this.confirmPassword.set('');
+    this.passwordError.set(null);
+    this.isEditingPassword.set(true);
+  }
+
+  protected cancelEditingPassword(): void {
+    this.isEditingPassword.set(false);
+    this.passwordError.set(null);
+  }
+
+  protected toggleCurrentPasswordVisibility(): void {
+    this.showCurrentPassword.update((value) => !value);
+  }
+
+  protected toggleNewPasswordVisibility(): void {
+    this.showNewPassword.update((value) => !value);
+  }
+
+  protected toggleConfirmPasswordVisibility(): void {
+    this.showConfirmPassword.update((value) => !value);
+  }
+
+  protected async savePassword(): Promise<void> {
+    this.savingPassword.set(true);
+    this.passwordError.set(null);
+
+    const current = this.currentPassword().trim();
+    const next = this.newPassword().trim();
+    const confirm = this.confirmPassword().trim();
+
+    if (current.length === 0 || next.length === 0 || confirm.length === 0) {
+      this.passwordError.set('Completá todos los campos.');
+      this.savingPassword.set(false);
+      return;
+    }
+
+    if (next.length < 4) {
+      this.passwordError.set('La nueva contraseña debe tener al menos 4 caracteres.');
+      this.savingPassword.set(false);
+      return;
+    }
+
+    if (next !== confirm) {
+      this.passwordError.set('Las contraseñas nuevas no coinciden.');
+      this.savingPassword.set(false);
+      return;
+    }
+
+    const result = await this.authService.updatePassword({
+      currentPassword: current,
+      newPassword: next,
+    });
+
+    this.savingPassword.set(false);
+
+    if (!result.success) {
+      this.passwordError.set(result.error ?? 'No se pudo cambiar la contraseña.');
+      return;
+    }
+
+    this.isEditingPassword.set(false);
   }
 }
