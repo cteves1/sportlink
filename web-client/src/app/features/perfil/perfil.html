@@ -17,9 +17,62 @@
       >
         <svg lucideUser [size]="32" class="block"></svg>
       </span>
-      <div>
-        <h2 class="text-lg font-semibold text-gray-900">{{ user()?.name }}</h2>
-        <p class="text-sm text-gray-500">{{ user()?.email }}</p>
+      <div class="flex-1">
+        @if (isEditing()) {
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              type="text"
+              [(ngModel)]="editName"
+              placeholder="Nombre completo"
+              class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            />
+            <input
+              type="text"
+              [(ngModel)]="editSubscriptionTier"
+              placeholder="Nivel de suscripción"
+              class="rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none focus:ring-1 focus:ring-brand-700"
+            />
+          </div>
+        } @else {
+          <h2 class="text-lg font-semibold text-gray-900">{{ user()?.name }}</h2>
+          <p class="text-sm text-gray-500">{{ user()?.email }}</p>
+        }
+
+        @if (editError()) {
+          <p class="mt-2 text-xs text-red-600">{{ editError() }}</p>
+        }
+      </div>
+
+      <div class="ml-auto">
+        @if (isEditing()) {
+          <div class="flex gap-2">
+            <button
+              type="button"
+              (click)="cancelEditing()"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <svg lucideX [size]="16" class="block"></svg>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              (click)="saveProfile()"
+              [disabled]="saving()"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+            >
+              {{ saving() ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+        } @else {
+          <button
+            type="button"
+            (click)="startEditing()"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <svg lucidePencil [size]="16" class="block"></svg>
+            Editar
+          </button>
+        }
       </div>
     </div>
 

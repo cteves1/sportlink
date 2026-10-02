@@ -68,4 +68,26 @@ export class AuthService {
   async logout(): Promise<void> {
     await this.supabaseService.client.auth.signOut();
   }
+
+  async updateUserMetadata(input: {
+    name: string;
+    subscriptionTier: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    const {
+      data: { user },
+      error,
+    } = await this.supabaseService.client.auth.updateUser({
+      data: {
+        name: input.name,
+        subscription_tier: input.subscriptionTier,
+      },
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    this.supabaseService.user.set(user);
+    return { success: true };
+  }
 }
