@@ -1,6 +1,8 @@
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-  <div class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-xl">
-    <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+  <div
+    class="flex h-[min(90vh,90vw)] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+  >
+    <div class="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4">
       <div>
         <h2 class="text-lg font-semibold text-gray-900">Suscripción</h2>
         <p class="text-sm text-gray-500">{{ athlete().firstName }} {{ athlete().lastName }}</p>
@@ -15,7 +17,7 @@
       </button>
     </div>
 
-    <div class="px-6 py-6">
+    <div class="flex-1 overflow-y-auto px-6 py-6">
       @if (loading()) {
         <div class="py-4 text-center text-sm text-gray-500">Cargando detalles de pago...</div>
       } @else if (summary(); as summary) {
