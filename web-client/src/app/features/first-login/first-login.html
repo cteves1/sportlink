@@ -98,6 +98,24 @@
         <p class="rounded-md bg-red-50 p-2 text-sm text-red-700">{{ errorMessage() }}</p>
       }
 
+      @if (emailUsed()) {
+        <div class="rounded-md bg-yellow-50 p-3 text-sm text-yellow-800">
+          <p class="mb-2">Ese email ya está registrado. ¿Querés recuperar tu contraseña?</p>
+          <button
+            type="button"
+            (click)="recoverPassword()"
+            [disabled]="isRecovering()"
+            class="rounded-md bg-yellow-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-yellow-700 disabled:opacity-60"
+          >
+            {{ isRecovering() ? 'Enviando...' : 'Recuperar contraseña' }}
+          </button>
+        </div>
+      }
+
+      @if (recoveryMessage()) {
+        <p class="rounded-md bg-green-50 p-2 text-sm text-green-700">{{ recoveryMessage() }}</p>
+      }
+
       <button
         type="submit"
         class="mt-2 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"

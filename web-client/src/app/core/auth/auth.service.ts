@@ -69,6 +69,18 @@ export class AuthService {
     await this.supabaseService.client.auth.signOut();
   }
 
+  async resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
+    const { error } = await this.supabaseService.client.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/primer-ingreso',
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  }
+
   async updateUserMetadata(input: {
     name: string;
     subscriptionTier: string;

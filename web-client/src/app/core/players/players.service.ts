@@ -407,8 +407,44 @@ export class PlayersService {
     this._athletes.set((data ?? []).map((row) => fromDbRow(row as DbAthlete)));
   }
 
+  /** Indica si el teléfono ya está registrado en un jugador. */
+  async isPhoneUsed(phone: string): Promise<boolean> {
+    const { count, error } = await this.supabase
+      .from('athletes')
+      .select('*', { count: 'exact', head: true })
+      .eq('phone', phone);
+
+    if (error) {
+      console.error('Error verificando teléfono:', error);
+      return false;
+    }
+
+    return (count ?? 0) > 0;
+  }
+
+  /** Indica si el email ya fue usado por otro jugador que completó el primer login. */
+  async isEmailUsed(email: string): Promise<boolean> {
+    const { count, error } = await this.supabase
+      .from('athletes')
+      .select('*', { count: 'exact', head: true })
+      .eq('email', email)
+      .eq('setup_completed', true);
+
+    if (error) {
+      console.error('Error verificando email:', error);
+      return false;
+    }
+
+    return (count ?? 0) > 0;
+  }
+
   /** Crea un nuevo jugador generando automáticamente su usuario y clave temporal. */
   async addAthlete(input: NewAthleteInput): Promise<Athlete | null> {
+    const phoneUsed = await this.isPhoneUsed(input.phone);
+    if (phoneUsed) {
+      throw new Error('El número de teléfono ya está registrado.');
+    }
+
     const usedUsernames = new Set(this._athletes().map((a) => a.username));
     const username = this.reserveUsername(input.firstName, input.lastName, usedUsernames);
     const tempPassword = `TM-${new Date().getFullYear()}-${randomAlnum(4)}`;

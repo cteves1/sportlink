@@ -22,6 +22,9 @@ export class FirstLogin {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly passwordVisible = signal(false);
   protected readonly confirmPasswordVisible = signal(false);
+  protected readonly isRecovering = signal(false);
+  protected readonly recoveryMessage = signal<string | null>(null);
+  protected readonly emailUsed = signal(false);
 
   protected readonly athleteId = computed(() => this.authService.user()?.athleteId);
 
@@ -57,6 +60,16 @@ export class FirstLogin {
       return;
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+    const used = await this.playersService.isEmailUsed(normalizedEmail);
+    if (used) {
+      this.emailUsed.set(true);
+      this.errorMessage.set(
+        'Ese email ya está registrado. Si te olvidaste la contraseña, podés recuperarla.',
+      );
+      return;
+    }
+
     const { error: passwordError } = await this.supabaseService.client.auth.updateUser({
       password,
     });
@@ -78,6 +91,30 @@ export class FirstLogin {
 
   protected togglePasswordVisible(): void {
     this.passwordVisible.update((visible) => !visible);
+  }
+
+  protected async recoverPassword(): Promise<void> {
+    const email = this.form.getRawValue().email.trim().toLowerCase();
+    if (!email) {
+      this.errorMessage.set('Ingresá tu email para recuperar la contraseña.');
+      return;
+    }
+
+    this.isRecovering.set(true);
+    this.recoveryMessage.set(null);
+    this.errorMessage.set(null);
+
+    const result = await this.authService.resetPassword(email);
+
+    this.isRecovering.set(false);
+    if (!result.success) {
+      this.errorMessage.set(result.error ?? 'No se pudo enviar el email de recuperación.');
+      return;
+    }
+
+    this.recoveryMessage.set(
+      'Te enviamos un email para recuperar tu contraseña. Revisá tu bandeja de entrada.',
+    );
   }
 
   protected toggleConfirmPasswordVisible(): void {
