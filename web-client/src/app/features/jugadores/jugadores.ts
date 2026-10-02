@@ -8,7 +8,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import {
-  LucideCheck,
   LucideChevronDown,
   LucideChevronUp,
   LucideClipboardList,
@@ -16,7 +15,6 @@ import {
   LucidePencil,
   LucideTrash2,
   LucideUserPlus,
-  LucideX,
 } from '@lucide/angular';
 import {
   Athlete,
@@ -35,6 +33,7 @@ import {
 } from '../../core/players/players.service';
 import { buildWhatsappLink, sendWhatsapp } from '../../core/players/whatsapp';
 import { PlayerFormModal } from '../../shared/player-form-modal/player-form-modal';
+import { SubscriptionModal } from '../../shared/subscription-modal/subscription-modal';
 
 export type { Athlete, Category };
 
@@ -58,6 +57,7 @@ interface PageState {
     RouterLink,
     FormsModule,
     PlayerFormModal,
+    SubscriptionModal,
     MatPaginatorModule,
     MatFormFieldModule,
     MatInputModule,
@@ -108,10 +108,11 @@ export class Jugadores {
     'status',
     'playerType',
     'attendance',
-    'paid',
-    'debt',
+    'subscription',
     'actions',
   ];
+
+  protected readonly subscriptionAthlete = signal<Athlete | null>(null);
 
   protected readonly sortState = signal<SortState>({ active: '', direction: '' });
   protected readonly pageState = signal<PageState>({ pageIndex: 0, pageSize: 10 });
@@ -151,8 +152,6 @@ export class Jugadores {
           return athlete.status;
         case 'attendance':
           return athlete.attendance;
-        case 'debt':
-          return athlete.debt;
         default:
           return '';
       }
@@ -235,13 +234,12 @@ export class Jugadores {
     await this.playersService.deleteAthlete(athleteId);
   }
 
-  protected async togglePaid(athleteId: number): Promise<void> {
-    await this.playersService.togglePaid(athleteId);
+  protected openSubscription(athlete: Athlete): void {
+    this.subscriptionAthlete.set(athlete);
   }
 
-  protected async updateDebt(athleteId: number, value: number): Promise<void> {
-    const debt = Number.isFinite(value) && value >= 0 ? value : 0;
-    await this.playersService.updateDebt(athleteId, debt);
+  protected closeSubscription(): void {
+    this.subscriptionAthlete.set(null);
   }
 
   protected sendWhatsapp(athlete: Athlete): void {

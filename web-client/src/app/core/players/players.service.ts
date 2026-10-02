@@ -179,10 +179,6 @@ export interface Athlete extends PlayingProfile {
   /** Indica si el jugador ya completó el formulario de bienvenida (objetivos/motivación/experiencia). */
   welcomeFormCompleted: boolean;
   welcomeForm: WelcomeFormAnswers | null;
-  /** Estado de pago del mes/año corriente. */
-  paid: boolean;
-  /** Deuda pendiente en la moneda del club (ej. ARS). */
-  debt: number;
 }
 
 export type NewAthleteInput = Pick<
@@ -248,8 +244,6 @@ interface DbAthlete {
   setup_completed: boolean;
   welcome_form_completed: boolean;
   welcome_form_answers: DbWelcomeForm[] | null;
-  paid: boolean | null;
-  debt: number | null;
 }
 
 /** Normaliza un texto quitando tildes/espacios y pasándolo a minúsculas, para armar usernames. */
@@ -301,8 +295,6 @@ function fromDbRow(row: DbAthlete): Athlete {
     trainingDays: row.training_days,
     welcomeFormCompleted: row.welcome_form_completed,
     welcomeForm: welcomeAnswers ? fromDbWelcomeForm(welcomeAnswers) : null,
-    paid: row.paid ?? false,
-    debt: row.debt ?? 0,
   };
 }
 
@@ -334,8 +326,6 @@ function athleteFromInput(id: number, input: NewAthleteInput, username: string, 
     training_days: profile.training_days,
     welcome_form_completed: false,
     welcome_form_answers: [],
-    paid: false,
-    debt: 0,
   };
   return fromDbRow(row);
 }
@@ -560,38 +550,6 @@ export class PlayersService {
 
     this._athletes.update((list) =>
       list.map((a) => (a.id === athleteId ? { ...a, status: nextStatus } : a)),
-    );
-  }
-
-  /** Alterna el estado de pago del jugador. Requiere la columna `paid` en la tabla athletes. */
-  async togglePaid(athleteId: number): Promise<void> {
-    const athlete = this._athletes().find((a) => a.id === athleteId);
-    if (!athlete) return;
-
-    const nextPaid = !athlete.paid;
-    const { error } = await this.supabase.from('athletes').update({ paid: nextPaid }).eq('id', athleteId);
-
-    if (error) {
-      console.error('Error cambiando estado de pago del atleta:', error);
-      return;
-    }
-
-    this._athletes.update((list) =>
-      list.map((a) => (a.id === athleteId ? { ...a, paid: nextPaid } : a)),
-    );
-  }
-
-  /** Actualiza la deuda de un jugador. Requiere la columna `debt` en la tabla athletes. */
-  async updateDebt(athleteId: number, debt: number): Promise<void> {
-    const { error } = await this.supabase.from('athletes').update({ debt }).eq('id', athleteId);
-
-    if (error) {
-      console.error('Error actualizando deuda del atleta:', error);
-      return;
-    }
-
-    this._athletes.update((list) =>
-      list.map((a) => (a.id === athleteId ? { ...a, debt } : a)),
     );
   }
 
