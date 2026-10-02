@@ -1,14 +1,12 @@
-import { AfterViewInit, Component, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatPaginator, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
-import { MatTableModule } from '@angular/material/table';
 import {
   LucideCheck,
   LucideChevronDown,
@@ -60,8 +58,6 @@ interface PageState {
     RouterLink,
     FormsModule,
     PlayerFormModal,
-    MatTableModule,
-    MatSortModule,
     MatPaginatorModule,
     MatFormFieldModule,
     MatInputModule,
@@ -80,7 +76,7 @@ interface PageState {
   ],
   templateUrl: './jugadores.html',
 })
-export class Jugadores implements AfterViewInit {
+export class Jugadores {
   private readonly playersService = inject(PlayersService);
 
   /** Categorías disponibles para filtrar, incluyendo la opción "Todas". */
@@ -94,7 +90,9 @@ export class Jugadores implements AfterViewInit {
   protected readonly playingStyleLabel = playingStyleLabel;
   protected readonly rubberTypeLabel = rubberTypeLabel;
   protected readonly trainingDaysLabel = trainingDaysLabel;
-  protected readonly isElite = isEliteCategory;
+  protected isElite(athlete: Athlete): boolean {
+    return isEliteCategory(athlete.category);
+  }
   protected readonly buildWhatsappLink = buildWhatsappLink;
 
   protected readonly searchTerm = signal('');
@@ -117,12 +115,6 @@ export class Jugadores implements AfterViewInit {
 
   protected readonly sortState = signal<SortState>({ active: '', direction: '' });
   protected readonly pageState = signal<PageState>({ pageIndex: 0, pageSize: 10 });
-
-  @ViewChild(MatSort) sort!: MatSort;
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
-
-  /** Renderiza una fila de detalle por cada fila de datos para permitir la expansión. */
-  protected readonly isExpansionDetailRow = (): boolean => true;
 
   protected readonly filteredAthletes = computed(() => {
     const athletes = this.playersService.athletes();
@@ -189,16 +181,6 @@ export class Jugadores implements AfterViewInit {
     return this.playersService.athletes().find((athlete) => athlete.id === id) ?? null;
   });
 
-  ngAfterViewInit(): void {
-    // Sincroniza el estado interno con los componentes de Material en caso de cambios por UX.
-    if (this.sort) {
-      this.sortState.set({
-        active: this.sort.active,
-        direction: this.sort.direction as SortState['direction'],
-      });
-    }
-  }
-
   protected applySearch(event: Event): void {
     this.searchTerm.set((event.target as HTMLInputElement).value);
     this.pageState.update((state) => ({ ...state, pageIndex: 0 }));
@@ -214,8 +196,12 @@ export class Jugadores implements AfterViewInit {
     this.pageState.update((state) => ({ ...state, pageIndex: 0 }));
   }
 
-  protected onSort(sort: Sort): void {
-    this.sortState.set({ active: sort.active, direction: sort.direction as SortState['direction'] });
+  protected onSort(active: string): void {
+    this.sortState.update((state) => {
+      const nextDirection: SortState['direction'] =
+        state.active === active ? (state.direction === 'asc' ? 'desc' : state.direction === 'desc' ? '' : 'asc') : 'asc';
+      return { active: nextDirection ? active : '', direction: nextDirection };
+    });
   }
 
   protected onPage(event: PageEvent): void {
