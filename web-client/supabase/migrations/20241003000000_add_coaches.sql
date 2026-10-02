@@ -6,7 +6,8 @@
 -- La contraseña temporal es: TempPass123!
 -- (cambiarla después del primer login si se desea).
 
-with coaches as (
+-- 1. Inserta los usuarios en auth.users si no existen.
+with new_users as (
   insert into auth.users (
     id,
     instance_id,
@@ -20,54 +21,63 @@ with coaches as (
     aud,
     role
   )
-  values (
+  select
     gen_random_uuid(),
     '00000000-0000-0000-0000-000000000000',
-    'cristianteves1@gmail.com',
+    v.email,
     crypt('TempPass123!', gen_salt('bf')),
     now(),
     '{"provider":"email","providers":["email"]}',
-    '{"name":"Cristian Teves"}',
+    v.meta,
     now(),
     now(),
     'authenticated',
     'authenticated'
-  ), (
-    gen_random_uuid(),
-    '00000000-0000-0000-0000-000000000000',
-    'fraanblasco2307@gmail.com',
-    crypt('TempPass123!', gen_salt('bf')),
-    now(),
-    '{"provider":"email","providers":["email"]}',
-    '{"name":"Francisco Blasco"}',
-    now(),
-    now(),
-    'authenticated',
-    'authenticated'
+  from (
+    values
+      ('cristianteves1@gmail.com', '{"name":"Cristian Teves"}'),
+      ('fraanblasco2307@gmail.com', '{"name":"Francisco Blasco"}')
+  ) as v(email, meta)
+  where not exists (
+    select 1 from auth.users u where u.email = v.email
   )
-  on conflict (email) do update set
-    raw_user_meta_data = excluded.raw_user_meta_data,
-    updated_at = now()
   returning id, email
 ),
-identities as (
+existing_users as (
+  select id, email
+  from auth.users
+  where email in (
+    'cristianteves1@gmail.com',
+    'fraanblasco2307@gmail.com'
+  )
+),
+all_users as (
+  select id, email from new_users
+  union all
+  select id, email from existing_users
+),
+-- 2. Inserta las identidades necesarias para login por email.
+new_identities as (
   insert into auth.identities (provider_id, user_id, identity_data, provider, created_at, updated_at)
   select
-    c.email,
-    c.id,
-    jsonb_build_object('sub', c.id::text, 'email', c.email),
+    u.email,
+    u.id,
+    jsonb_build_object('sub', u.id::text, 'email', u.email),
     'email',
     now(),
     now()
-  from coaches c
-  on conflict (provider_id, provider) do update set
-    identity_data = excluded.identity_data,
-    updated_at = now()
+  from all_users u
+  where not exists (
+    select 1
+    from auth.identities i
+    where i.provider_id = u.email and i.provider = 'email'
+  )
   returning user_id
 )
+-- 3. Crea o actualiza el perfil con rol entrenador.
 insert into public.profiles (id, role, athlete_id)
-select i.user_id, 'entrenador', null
-from identities i
+select u.id, 'entrenador', null
+from all_users u
 on conflict (id) do update set
   role = excluded.role,
   athlete_id = excluded.athlete_id;
